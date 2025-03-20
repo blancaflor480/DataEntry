@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
 import { Link } from "react-router-dom";
+import logo from "../style/image/originallogo.png";
 import "../style/login.css"; // Import the CSS file
 
 const Login = () => {
@@ -22,11 +23,18 @@ const Login = () => {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h2>Login</h2>
+        <div className="logo">
+        <img src={logo} alt="Logo" width="100" height="100" />
+        <p className="title">
+          <span className="color-title">MATLEX</span> COPORATION
+          </p>
+        
+        </div>
+        <h2 className="description">Log in securely to access the designated dashboard.</h2>
         {error && <p className="error-message">{error}</p>}
         <form onSubmit={handleLogin} className="login-form">
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">Email:</label>
             <input
               type="email"
               id="email"
@@ -37,7 +45,7 @@ const Login = () => {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">Password:</label>
             <input
               type="password"
               id="password"
@@ -46,7 +54,11 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <p className="forgotpassword-link">
+          <Link to="/forgot">Forgot Password?</Link>
+        </p>
           </div>
+          
           <button type="submit" className="login-button">
             Sign In
           </button>
