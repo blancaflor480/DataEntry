@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import "../style/header.css";
 
-const Header = ({ toggleSidebar }) => {
+const Header = ({ toggleSidebar, userEmail }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const toggleDropdown = () => {
@@ -18,7 +18,7 @@ const Header = ({ toggleSidebar }) => {
 
       {/* Profile Dropdown (aligned to the end) */}
       <div className="profile-dropdown" onClick={toggleDropdown}>
-        <span className="profile-name me-2">Admin</span>
+      <span className="profile-name me-2">{userEmail}</span> {/* Use userEmail */}
         <i className="fas fa-user-circle"></i>
         {isDropdownOpen && (
           <div className="dropdown-menu show">

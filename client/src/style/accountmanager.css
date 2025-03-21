@@ -2,9 +2,10 @@
 body {
     margin: 0;
     font-family: 'Poppins', sans-serif;
+    background-color: #f4f6f9;
   }
   
-  .dashboard {
+  .account-manager {
     display: flex;
   }
   
@@ -45,6 +46,7 @@ body {
     flex-grow: 1;
     margin-left: 300px; /* Adjust based on sidebar width */
     transition: margin-left 0.3s ease;
+    background-color: #f4f6f9;
   }
   
   
