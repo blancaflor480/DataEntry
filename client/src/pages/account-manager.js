@@ -7,7 +7,7 @@ import { onAuthStateChanged } from "firebase/auth";
 
 const AccountManager = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [filter, setFilter] = useState("Super Admin"); // Default filter
+  const [filter, setFilter] = useState("All"); // Default filter
   const [userEmail, setUserEmail] = useState("");
 
   // Check if user is logged in
@@ -36,7 +36,13 @@ const AccountManager = () => {
   ];
 
   // Filtered data based on selected position
-  const filteredUsers = users.filter((user) => user.position === filter);
+  const filteredUsers = users.filter((user) => {
+    if (filter === "All") {
+      return user.position === "Super Admin" || user.position === "Admin"; // Show both Super Admin and Admin
+    } else {
+      return user.position === filter; // Show only the selected position
+    }
+  });
 
   return (
     <div className="account-manager">
@@ -58,6 +64,7 @@ const AccountManager = () => {
                   onChange={(e) => setFilter(e.target.value)}
                   className="form-select"
                 >
+                  <option value="All">All</option>
                   <option value="Super Admin">Super Admin</option>
                   <option value="Admin">Admin</option>
                 </select>
