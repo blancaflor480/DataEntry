@@ -28,6 +28,7 @@ const Login = () => {
         <p className="title">
           <span className="color-title">MATLEX</span> COPORATION
           </p>
+          <h1 className="text-3xl font-bold text-blue-500">Hello, Tailwind!</h1>
         
         </div>
         <h2 className="description">Log in securely to access the designated dashboard.</h2>
