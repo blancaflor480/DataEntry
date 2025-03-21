@@ -9,6 +9,9 @@ const AccountManager = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [filter, setFilter] = useState("All"); // Default filter
   const [userEmail, setUserEmail] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // State for search query
+  const [currentPage, setCurrentPage] = useState(1); // Current page for pagination
+  const [itemsPerPage] = useState(5); // Number of items per page
 
   // Check if user is logged in
   useEffect(() => {
@@ -32,7 +35,11 @@ const AccountManager = () => {
   const users = [
     { id: 1, image: "Not Available", name: "John Doe", position: "Super Admin", status: "Active", email: "admin@gmail.com" },
     { id: 2, image: "Not Available", name: "Jane", position: "Admin", status: "Inactive", email: "admin@gmail.com" },
-    { id: 3, image: "Not Available", name: "Alice", position: "User", status: "Active", email: "user@gmail.com" }, // Example of a non-admin user
+    { id: 3, image: "Not Available", name: "Alice", position: "User", status: "Active", email: "user@gmail.com" },
+    { id: 4, image: "Not Available", name: "Bob", position: "Super Admin", status: "Active", email: "bob@gmail.com" },
+    { id: 5, image: "Not Available", name: "Charlie", position: "Admin", status: "Inactive", email: "charlie@gmail.com" },
+    { id: 6, image: "Not Available", name: "David", position: "User", status: "Active", email: "david@gmail.com" },
+    { id: 7, image: "Not Available", name: "Eve", position: "Super Admin", status: "Active", email: "eve@gmail.com" },
   ];
 
   // Filtered data based on selected position
@@ -43,6 +50,37 @@ const AccountManager = () => {
       return user.position === filter; // Show only the selected position
     }
   });
+
+  // Filter users based on search query
+  const searchedUsers = filteredUsers.filter((user) =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = searchedUsers.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Total number of pages
+  const totalPages = Math.ceil(searchedUsers.length / itemsPerPage);
+
+  // Change page
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Go to previous page
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  // Go to next page
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   return (
     <div className="account-manager">
@@ -71,6 +109,20 @@ const AccountManager = () => {
               </div>
             </div>
 
+            {/* Search Bar and Button */}
+            <div className="search-container mt-3">
+              <div className="col-xs-11 col-sm-11 col-md-11 col-lg-11 col-xl-11">
+                <input
+                  type="text"
+                  className="form-control search-input"
+                  placeholder="Search by name or email"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <button className="btn btn-primary search-button">Search</button>
+            </div>
+
             {/* Table */}
             <div className="table-container mt-4">
               <table className="table table-striped table-hover">
@@ -86,9 +138,9 @@ const AccountManager = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((user, index) => (
+                  {currentItems.map((user, index) => (
                     <tr key={user.id}>
-                      <td>{index + 1}</td>
+                      <td>{indexOfFirstItem + index + 1}</td>
                       <td>{user.image}</td>
                       <td>{user.name}</td>
                       <td>{user.position}</td>
@@ -104,6 +156,29 @@ const AccountManager = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Bootstrap Pagination */}
+            <nav aria-label="Page navigation" className="mt-4">
+              <ul className="pagination">
+                <li className={`page-item ${currentPage === 1 ? "disabled" : ""}`}>
+                  <button className="page-link" onClick={goToPreviousPage}>
+                    Previous
+                  </button>
+                </li>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <li key={i + 1} className={`page-item ${currentPage === i + 1 ? "active" : ""}`}>
+                    <button className="page-link" onClick={() => paginate(i + 1)}>
+                      {i + 1}
+                    </button>
+                  </li>
+                ))}
+                <li className={`page-item ${currentPage === totalPages ? "disabled" : ""}`}>
+                  <button className="page-link" onClick={goToNextPage}>
+                    Next
+                  </button>
+                </li>
+              </ul>
+            </nav>
           </div>
         </div>
       </div>

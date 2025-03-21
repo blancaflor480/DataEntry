@@ -240,3 +240,52 @@ body {
   .table tbody tr:hover {
     background-color: #f1f1f1;
   }
+
+  .search-container {
+    display: flex;
+    gap: 10px; /* Adds space between the input and button */
+    align-items: center; /* Aligns items vertically in the center */
+  }
+  
+  .search-input {
+    width: 100px; /* Adjust the width of the input field */
+    flex: none; /* Prevents the input from growing */
+  }
+  
+  .search-button {
+    white-space: nowrap; /* Prevents the button text from wrapping */
+  }
+
+  .pagination-container {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .pagination {
+    display: flex;
+    gap: 5px;
+    list-style: none;
+    padding: 0;
+  }
+  
+  .page-item {
+    display: inline-block;
+  }
+  
+  .page-link {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    color: #007bff;
+    cursor: pointer;
+  }
+  
+  .page-item.active .page-link {
+    background-color: #007bff;
+    color: #fff;
+    border-color: #007bff;
+  }
+  
+  .page-link:hover {
+    background-color: #f8f9fa;
+  }
