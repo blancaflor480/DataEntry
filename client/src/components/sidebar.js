@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import "../style/sidebar.css";
 import logo from "../style/image/originallogo.png";
 
-const Sidebar = ({ isSidebarOpen }) => {
+const Sidebar = ({ isSidebarOpen, userRole }) => {
   return (
     <div className={`sidebar ${isSidebarOpen ? "open" : "closed"}`}>
       <div className="sidebar-header">
@@ -16,11 +16,13 @@ const Sidebar = ({ isSidebarOpen }) => {
             <i className="fas fa-tachometer-alt"></i> Dashboard
           </Link>
         </li>
-        <li>
-          <Link to="/account-manager">
-            <i className="fas fa-user"></i> Account Manager
-          </Link>
-        </li>
+        {userRole === "Super Admin" && (
+          <li>
+            <Link to="/account-manager">
+              <i className="fas fa-user"></i> Account Manager
+            </Link>
+          </li>
+        )}
         <li>
           <Link to="/data-entry">
             <i className="fas fa-pencil-alt"></i> Data Entry
@@ -36,11 +38,13 @@ const Sidebar = ({ isSidebarOpen }) => {
             <i className="fas fa-chart-bar"></i> Report
           </Link>
         </li>
-        <li>
-          <Link to="/settings">
-            <i className="fas fa-cog"></i> Settings
-          </Link>
-        </li>
+        {userRole === "Super Admin" && (
+          <li>
+            <Link to="/settings">
+              <i className="fas fa-cog"></i> Settings
+            </Link>
+          </li>
+        )}
       </ul>
     </div>
   );

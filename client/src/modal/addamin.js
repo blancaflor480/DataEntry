@@ -7,6 +7,8 @@ import Col from "react-bootstrap/Col";
 import { auth, db } from "../firebase"; // Use 'db' instead of 'firestore'
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
+import axios from "axios"; // For sending files to the backend
+
 
 const AddAdminModal = ({ show, onHide, onAddAdmin }) => {
   const [formData, setFormData] = useState({
@@ -116,6 +118,27 @@ const AddAdminModal = ({ show, onHide, onAddAdmin }) => {
     e.preventDefault();
     if (await validateForm()) {
       try {
+        let profileUrl = null;
+
+        // Upload profile image to backend if a file is selected
+        if (formData.profile) {
+          const formDataToSend = new FormData();
+          formDataToSend.append("profile", formData.profile);
+
+          try {
+            const response = await axios.post("http://localhost:5000/upload", formDataToSend, {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            });
+            profileUrl = response.data.fileUrl;
+          } catch (error) {
+            console.error("Error uploading image to Google Drive:", error);
+            alert("Failed to upload profile image. Please try again.");
+            return; // Stop execution if image upload fails
+          }
+        }
+
         // Create user in Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(
           auth,
@@ -132,6 +155,8 @@ const AddAdminModal = ({ show, onHide, onAddAdmin }) => {
           gender: formData.gender,
           role: formData.role,
           email: formData.email,
+          profile: profileUrl, // Store the Google Drive image URL
+          status:"Inactive",
           createdAt: new Date().toISOString(), // Add a timestamp
         });
 

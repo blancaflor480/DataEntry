@@ -1,26 +1,51 @@
 import React, { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import logo from "../style/image/originallogo.png";
-import "../style/login.css"; // Import the custom CSS file
+import "../style/login.css";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const navigate = useNavigate();  // ✅ Initialize useNavigate
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");  // Clear previous errors
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login successful!");
-      navigate("/dashboard"); // Redirect to Dashboard
+      // Sign in the user
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Check the user's role in Firestore
+      const userDocRef = doc(db, "admin", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        const userRole = userData.role;
+        
+        // Only allow Super Admin and Admin to access the dashboard
+        if (userRole === "Super Admin" || userRole === "Admin") {
+          console.log("Login successful! Role:", userRole);
+          navigate("/dashboard");
+        } else {
+          // If user role is not Super Admin or Admin
+          await auth.signOut(); // Sign them out
+          setError("You don't have permission to access the dashboard.");
+        }
+      } else {
+        // If user document doesn't exist in admin collection
+        await auth.signOut(); // Sign them out
+        setError("User account not found or insufficient permissions.");
+      }
     } catch (err) {
+      console.error("Login error:", err);
       setError("Invalid email or password.");
     }
   };

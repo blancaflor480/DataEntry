@@ -3,29 +3,55 @@ import Sidebar from "../components/sidebar";
 import Header from "../components/header";
 import "../style/dashboard.css";
 import { auth } from "../firebase"; 
-import { onAuthStateChanged } from "firebase/auth"; 
+import { onAuthStateChanged, signOut } from "firebase/auth"; 
+import { db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [filter, setFilter] = useState("Active"); 
   const [userEmail, setUserEmail] = useState(""); 
+  const [userRole, setUserRole] = useState("");
 
   // Check if user is logged in
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.href = "/login"; 
+        window.location.href = "../login";
       } else {
-        setUserEmail(user.email); // Set the user's email
+        setUserEmail(user.email);
+
+        try {
+          // Fetch the user's role from Firestore
+          const userDocRef = doc(db, "admin", user.uid); // Use db instead of Firestore
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (userDocSnap.exists()) {
+            setUserRole(userDocSnap.data().role); // Assuming the role is stored in a field called `role`
+          } else {
+            console.log("No such document!");
+          }
+        } catch (error) {
+          console.error("Error fetching user role:", error);
+        }
       }
     });
-
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  // Logout function
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      window.location.href = "/login"; // Redirect to login page after logout
+    
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   // Sample data
@@ -44,9 +70,9 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      <Sidebar isSidebarOpen={isSidebarOpen} />
+      <Sidebar isSidebarOpen={isSidebarOpen} userRole={userRole} />
       <div className={`main-content ${isSidebarOpen ? "" : "sidebar-closed"}`}>
-        <Header toggleSidebar={toggleSidebar} userEmail={userEmail} /> {/* Pass userEmail as a prop */}
+        <Header toggleSidebar={toggleSidebar} userEmail={userEmail} userRole={userRole} handleLogout={handleLogout} /> {/* Pass handleLogout as a prop */}
         <div className="content">
           <h1 className="title-page">Dashboard</h1>
 
