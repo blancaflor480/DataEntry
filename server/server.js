@@ -12,7 +12,7 @@ const serviceAccount = require("./firebase-service-account.json");
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://dataentry-cd841.com",
+    databaseURL: "https://dataentry-cd202.com",
 });
 
 const db = admin.firestore();

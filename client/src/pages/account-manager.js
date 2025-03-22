@@ -4,6 +4,7 @@ import Header from "../components/header";
 import "../style/accountmanager.css";
 import { auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import AddAdminModal from "../modal/addamin";
 
 const AccountManager = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -12,6 +13,7 @@ const AccountManager = () => {
   const [searchQuery, setSearchQuery] = useState(""); // State for search query
   const [currentPage, setCurrentPage] = useState(1); // Current page for pagination
   const [itemsPerPage] = useState(5); // Number of items per page
+  const [showModal, setShowModal] = useState(false); // State for modal visibility
 
   // Check if user is logged in
   useEffect(() => {
@@ -81,6 +83,12 @@ const AccountManager = () => {
       setCurrentPage(currentPage + 1);
     }
   };
+  
+   // Handle adding a new admin
+   const handleAddAdmin = (adminData) => {
+    console.log("New Admin Data:", adminData);
+    // Add your logic here to save the admin data (e.g., API call)
+  };
 
   return (
     <div className="account-manager">
@@ -111,7 +119,7 @@ const AccountManager = () => {
 
             {/* Search Bar and Button */}
             <div className="search-container mt-3">
-              <div className="col-xs-11 col-sm-11 col-md-11 col-lg-11 col-xl-11">
+              <div className="col-md-9">
                 <input
                   type="text"
                   className="form-control search-input"
@@ -121,6 +129,21 @@ const AccountManager = () => {
                 />
               </div>
               <button className="btn btn-primary search-button">Search</button>
+              
+              <button
+                className="btn btn-success search-button"
+                onClick={() => setShowModal(true)}
+              >
+                Add Account
+              </button>
+
+              {/* Render the AddAdminModal */}
+              <AddAdminModal
+                show={showModal}
+                onHide={() => setShowModal(false)}
+                onAddAdmin={handleAddAdmin}
+              />
+            
             </div>
 
             {/* Table */}
