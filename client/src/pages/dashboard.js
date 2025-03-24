@@ -17,7 +17,7 @@ const Dashboard = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        window.location.href = "../login";
+        window.location.href = "/login";
       } else {
         setUserEmail(user.email);
 

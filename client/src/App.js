@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/login";
 import SignUp from "./pages/signup";
 import Dashboard from "./pages/dashboard";
@@ -9,9 +9,13 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 
 
 function App() {
+  const isLoggedIn = localStorage.getItem('token') || false;
   return (
     <Router>
       <Routes>
+      <Route path="/" element={
+          isLoggedIn ? <Navigate to="/dashboard" /> : <Navigate to="/login" />
+        } />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/dashboard" element={<Dashboard />} />

@@ -33,6 +33,8 @@ const Login = () => {
         // Only allow Super Admin and Admin to access the dashboard
         if (userRole === "Super Admin" || userRole === "Admin") {
           console.log("Login successful! Role:", userRole);
+          localStorage.setItem('token', user.uid);
+          //console.log("Token saved:", localStorage.getItem('token'));;
           navigate("/dashboard");
         } else {
           // If user role is not Super Admin or Admin
