@@ -7,6 +7,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import AddAdminModal from "../modal/addamin";
 import EditAdminModal from "../modal/editadmin";
 import ConfirmationModal from "../modal/deleteadmin"; 
+import ArchiveModal from "../modal/archivemodal"; // Import the new ArchiveModal
 import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs, updateDoc } from "firebase/firestore";
 
@@ -22,6 +23,7 @@ const AccountManager = () => {
   const [showAddModal, setShowAddModal] = useState(false); 
   const [showEditModal, setShowEditModal] = useState(false); 
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false); // State for ArchiveModal
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]); 
   const [loading, setLoading] = useState(true); 
@@ -48,7 +50,7 @@ const AccountManager = () => {
     };
 
     fetchUsers();
-  }, [showAddModal, showEditModal, showConfirmationModal]);
+  }, [showAddModal, showEditModal, showConfirmationModal, showArchiveModal]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -157,20 +159,23 @@ const AccountManager = () => {
     setShowConfirmationModal(true);
   };
 
-  // Function to archive the user
-  const archiveUser = async () => {
-    try {
-      const userDocRef = doc(db, "admin", selectedUser.id);
-      await updateDoc(userDocRef, { status: "disabled" });
-      alert("User deleted successfully!");
-      setShowConfirmationModal(false);
-      setUsers([]); // Reset users to trigger a re-fetch
-    } catch (error) {
-      console.error("Error archiving user:", error);
-      alert("Failed to delete user. Please try again.");
-    }
-  };
-
+// Function to archive the user
+const archiveUser = async () => {
+  try {
+    const userDocRef = doc(db, "admin", selectedUser.id);
+    const currentDate = new Date().toISOString(); // Get the current date in ISO format
+    await updateDoc(userDocRef, { 
+      status: "Disabled",
+      dateArchived: currentDate, // Add the current date to the dateArchived field
+    });
+    alert("User archived successfully!");
+    setShowConfirmationModal(false);
+    setUsers([]); // Reset users to trigger a re-fetch
+  } catch (error) {
+    console.error("Error archiving user:", error);
+    alert("Failed to archive user. Please try again.");
+  }
+};
   // Function to render profile image
   const renderProfileImage = (profile) => {
     if (!profile) {
@@ -278,7 +283,12 @@ const AccountManager = () => {
                 />
               </div>
               <button className="btn btn-primary search-button">Search</button>
-              <button className="btn btn-warning search-button">Archive</button>
+              <button
+                className="btn btn-warning search-button"
+                onClick={() => setShowArchiveModal(true)}
+              >
+                Archive
+              </button>
               <button
                 className="btn btn-success search-button"
                 onClick={() => setShowAddModal(true)}
@@ -400,6 +410,12 @@ const AccountManager = () => {
         onHide={() => setShowConfirmationModal(false)}
         onConfirm={archiveUser}
         message="Are you sure you want to delete this user?"
+      />
+      <ArchiveModal
+        show={showArchiveModal}
+        onHide={() => setShowArchiveModal(false)}
+        onRestore={() => setUsers([])} // Trigger re-fetch on restore
+        onDelete={() => setUsers([])} // Trigger re-fetch on delete
       />
     </div>
   );

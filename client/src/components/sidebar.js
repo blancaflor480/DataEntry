@@ -24,7 +24,7 @@ const Sidebar = ({ isSidebarOpen, userRole }) => {
           </li>
         )}
         <li>
-          <Link to="/data-entry">
+          <Link to="/dataentry-list">
             <i className="fas fa-pencil-alt"></i> Data Entry
           </Link>
         </li>
