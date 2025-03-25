@@ -7,7 +7,7 @@ import DataEntry from "./pages/dataentry-list";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "bootstrap/dist/js/bootstrap.bundle.min";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 function App() {
   const isLoggedIn = localStorage.getItem('token') || false;

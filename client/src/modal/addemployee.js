@@ -329,14 +329,28 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
             <Col>
               <Form.Group controlId="position">
                 <Form.Label className="mt-3">Position <span className="req">*</span></Form.Label>
-                <Form.Control
-                  type="text"
+                <Form.Select
                   name="position"
                   value={formData.position}
                   onChange={handleChange}
-                  isInvalid={!!errors.position}
+		              isInvalid={!!errors.position}
                   required
-                />
+                >
+                  <option value="">Select Here</option>
+                  <option value="Managing Director">Managing Director</option>
+                  <option value="Human Resources">Human Resources</option>
+                  <option value="Excutive Secretary">Excutative Secretary</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="Sales">Sales</option>
+                  <option value="Site Engineer">Site Engineer</option>
+                  <option value="Site Production Super Visor">Site Production Super Visor</option>
+                  <option value="Admin Staff">Admin Staff</option>
+                  <option value="Head Office">Head Office</option>
+                  <option value="Production Officers">Production Officers</option>
+                  <option value="Purchasing">Purchasing</option>
+                  <option value="Driver">Driver</option>
+                  <option value="Helper">Helper</option>
+                </Form.Select>
                 <Form.Control.Feedback type="invalid">
                   {errors.position}
                 </Form.Control.Feedback>

@@ -5,7 +5,7 @@ import Form from "react-bootstrap/Form";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import { db } from "../firebase"; // Use 'db' instead of 'firestore'
-import { doc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc} from "firebase/firestore";
 import axios from "axios"; // For sending files to the backend
 
 const EditAdminModal = ({ show, onHide, userToEdit, onEditAdmin }) => {

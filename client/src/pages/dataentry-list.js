@@ -30,6 +30,11 @@ const DataEntry = () => {
   const [employees, setEmployees] = useState([]); 
   const [loading, setLoading] = useState(true); 
 
+
+  // New state for sorting
+  const [sortColumn, setSortColumn] = useState(null);
+  const [sortDirection, setSortDirection] = useState('asc');
+
   // Fetch users from Firestore
   useEffect(() => {
     const fetchUsers = async () => {
@@ -112,32 +117,88 @@ const DataEntry = () => {
 
 
 // Modify the filtered data to use employees instead of users
-const filteredEmployees = employees?.filter((employee) => {
-  const positionMatches = 
-    filter === "All" ? true : employee.position === filter;
-  
-  const statusFilterMatches = 
-    statusFilter === "All" ? true : employee.status === statusFilter;
-  
-  return positionMatches && statusFilterMatches;
-}) || [];
+const processedEmployees = () => {
+  let result = employees?.filter((employee) => {
+    const positionMatches = 
+      filter === "All" ? true : employee.position === filter;
+    
+    const statusFilterMatches = 
+      statusFilter === "All" ? true : employee.status === statusFilter;
+    
+    return positionMatches && statusFilterMatches;
+  }) || [];
 
-  // Modify the search to use employees
-  // Search employees
-  const searchedEmployees = filteredEmployees?.filter((employee) =>
+  result = result.filter((employee) =>
     `${employee.firstName} ${employee.lastName}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase()) ||
     employee.corporateEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     employee.employeeNo?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  );
+
+  // Sorting logic
+  if (sortColumn) {
+    result.sort((a, b) => {
+      let valA, valB;
+      switch(sortColumn) {
+        case 'employeeNo':
+          valA = a.employeeNo;
+          valB = b.employeeNo;
+          break;
+        case 'fullName':
+          valA = `${a.firstName} ${a.lastName}`;
+          valB = `${b.firstName} ${b.lastName}`;
+          break;
+        case 'position':
+          valA = a.position;
+          valB = b.position;
+          break;
+        case 'status':
+          valA = a.status;
+          valB = b.status;
+          break;
+        case 'email':
+          valA = a.corporateEmail;
+          valB = b.corporateEmail;
+          break;
+        default:
+          return 0;
+      }
+
+      // Handle potential null or undefined values
+      valA = valA || '';
+      valB = valB || '';
+
+      // Perform comparison
+      if (typeof valA === 'string') {
+        return sortDirection === 'asc' 
+          ? valA.localeCompare(valB) 
+          : valB.localeCompare(valA);
+      } else {
+        return sortDirection === 'asc' 
+          ? (valA - valB) 
+          : (valB - valA);
+      }
+    });
+  }
+
+  return result;
+};
+
 
   // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = searchedEmployees.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(searchedEmployees.length / itemsPerPage);
-
+  const sortedEmployees = processedEmployees();
+const indexOfLastItem = currentPage * itemsPerPage;
+const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+const currentItems = sortedEmployees.slice(indexOfFirstItem, indexOfLastItem);
+const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
+  // Render sorting icon
+  const renderSortIcon = (column) => {
+    if (sortColumn !== column) return null;
+    return sortDirection === 'asc' 
+      ? <i className="fas fa-sort-up"></i> 
+      : <i className="fas fa-sort-down"></i>;
+  };
  
   // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
@@ -336,17 +397,93 @@ const archiveUser = async () => {
               ) : (
                 <table className="table table-striped table-hover">
                   <thead>
-                    <tr>
-                      <th>Employee No.</th>
-                      <th>Profile</th>
-                      <th>Full Name</th>
-                      <th>Position</th>
-                      <th>Status</th>
-                      <th>Email</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+  <tr>
+    <th 
+      onClick={() => {
+        setSortColumn('employeeNo');
+        setSortDirection(sortColumn === 'employeeNo' && sortDirection === 'asc' ? 'desc' : 'asc');
+      }}
+      style={{ cursor: 'pointer' }}
+      className="sortable-header"
+    >
+      <div className="d-flex align-items-center">
+        Employee No.
+        <span className="ms-2">
+          {renderSortIcon('employeeNo')}
+        </span>
+      </div>
+    </th>
+
+    <th>Profile</th>
+
+    <th 
+      onClick={() => {
+        setSortColumn('fullName');
+        setSortDirection(sortColumn === 'fullName' && sortDirection === 'asc' ? 'desc' : 'asc');
+      }}
+      style={{ cursor: 'pointer' }}
+      className="sortable-header"
+    >
+      <div className="d-flex align-items-center">
+        Full Name
+        <span className="ms-2">
+          {renderSortIcon('fullName')}
+        </span>
+      </div>
+    </th>   
+
+    {/* Repeat the same pattern for other sortable headers */}
+    <th 
+      onClick={() => {
+        setSortColumn('position');
+        setSortDirection(sortColumn === 'position' && sortDirection === 'asc' ? 'desc' : 'asc');
+      }}
+      style={{ cursor: 'pointer' }}
+      className="sortable-header"
+    >
+      <div className="d-flex align-items-center">
+        Position
+        <span className="ms-2">
+          {renderSortIcon('position')}
+        </span>
+      </div>
+    </th>
+
+    <th 
+      onClick={() => {
+        setSortColumn('status');
+        setSortDirection(sortColumn === 'status' && sortDirection === 'asc' ? 'desc' : 'asc');
+      }}
+      style={{ cursor: 'pointer' }}
+      className="sortable-header"
+    >
+      <div className="d-flex align-items-center">
+        Status
+        <span className="ms-2">
+          {renderSortIcon('status')}
+        </span>
+      </div>
+    </th>
+
+    <th 
+      onClick={() => {
+        setSortColumn('email');
+        setSortDirection(sortColumn === 'email' && sortDirection === 'asc' ? 'desc' : 'asc');
+      }}
+      style={{ cursor: 'pointer' }}
+      className="sortable-header"
+    >
+      <div className="d-flex align-items-center">
+        Email
+        <span className="ms-2">
+          {renderSortIcon('email')}
+        </span>
+      </div>
+    </th>
+    <th>Action</th>
+  </tr>
+</thead>
+  <tbody>
       {currentItems.length > 0 ? (
         currentItems.map((employee, index) => (
           <tr key={employee.id}>

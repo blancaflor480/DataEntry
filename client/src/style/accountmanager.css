@@ -338,3 +338,20 @@ body {
 .req{
   color: #bd3c49;
 }
+
+th {
+  cursor: pointer;
+  user-select: none;
+}
+th:hover {
+  background-color: #f1f1f1;
+}
+
+/* Add to your CSS file */
+.sortable-header:hover {
+  background-color: #f8f9fa;
+}
+
+.bi {
+  font-size: 0.9rem;
+}
