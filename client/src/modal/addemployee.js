@@ -128,24 +128,24 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
         // Upload joining contract if exists
         if (formData.joiningContract) {
           const joiningContractFormData = new FormData();
-          joiningContractFormData.append("profile", formData.joiningContract);
-          const joiningResponse = await axios.post("http://localhost:5000/upload", joiningContractFormData);
+          joiningContractFormData.append("attachment", formData.joiningContract);
+          const joiningResponse = await axios.post("http://localhost:5000/upload-attachment", joiningContractFormData);
           fileUrls.joiningContractUrl = joiningResponse.data.fileUrl;
         }
         
         // Upload probation contract if exists
         if (formData.probationContract) {
           const probationContractFormData = new FormData();
-          probationContractFormData.append("profile", formData.probationContract);
-          const probationResponse = await axios.post("http://localhost:5000/upload", probationContractFormData);
+          probationContractFormData.append("attachment", formData.probationContract);
+          const probationResponse = await axios.post("http://localhost:5000/upload-attachment", probationContractFormData);
           fileUrls.probationContractUrl = probationResponse.data.fileUrl;
         }
         
         // Upload regular contract if exists
         if (formData.regularContract) {
           const regularContractFormData = new FormData();
-          regularContractFormData.append("profile", formData.regularContract);
-          const regularResponse = await axios.post("http://localhost:5000/upload", regularContractFormData);
+          regularContractFormData.append("attachment", formData.regularContract);
+          const regularResponse = await axios.post("http://localhost:5000/upload-attachment", regularContractFormData);
           fileUrls.regularContractUrl = regularResponse.data.fileUrl;
         }
         

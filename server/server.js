@@ -32,7 +32,8 @@ const drive = google.drive({
       keyFile: path.join(__dirname, "firebase-service-account.json"), // Your service account key file
       scopes: ["https://www.googleapis.com/auth/drive"],
     }),
-  });    
+  });
+  
 // Endpoint to handle file upload to Google Drive
 app.post("/upload", upload.single("profile"), async (req, res) => {
     try {
@@ -77,6 +78,53 @@ app.post("/upload", upload.single("profile"), async (req, res) => {
         console.error("Error uploading file to Google Drive:", error);
         res.status(500).json({ error: "Failed to upload file" });
     }
+});
+
+// Endpoint to handle file upload to Google Drive for employee attachments
+app.post("/upload-attachment", upload.single("attachment"), async (req, res) => {
+  try {
+      if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileMetadata = {
+          name: req.file.originalname,
+          // Folder ID for employee attachments
+          parents: ["1fIqyPpe2LFjaF1JYywgoe9-028fiMrgq"], // Updated folder ID
+      };
+
+      const media = {
+          mimeType: req.file.mimetype,
+          body: require("fs").createReadStream(req.file.path),
+      };
+
+      const response = await drive.files.create({
+          resource: fileMetadata,
+          media: media,
+          fields: "id",
+      });
+
+      const fileId = response.data.id;
+
+      // Make the file publicly accessible
+      await drive.permissions.create({
+          fileId: fileId,
+          requestBody: {
+              role: "reader",
+              type: "anyone",
+          },
+      });
+
+      const fileUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+      // Delete the temporary file
+      require("fs").unlinkSync(req.file.path);
+
+      res.status(200).json({ fileUrl });
+  } catch (error) {
+      console.error("Error uploading attachment to Google Drive:", error);
+      res.status(500).json({ error: "Failed to upload attachment" });
+  }
 });
 
 // Create MySQL connection pool
