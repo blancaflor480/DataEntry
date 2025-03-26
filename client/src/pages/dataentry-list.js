@@ -7,9 +7,8 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import AddEmployeeModal from "../modal/addemployee";
 import EditEmployeeModal from "../modal/editemployees";
 import DeleteEmployeeModal from "../modal/deleteemployee"; 
-import ArchiveModal from "../modal/archivemodal"; // Import the new ArchiveModal
 import { db } from "../firebase";
-import { doc, getDoc, collection, getDocs, updateDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs} from "firebase/firestore";
 import axios from 'axios';
 
 const DataEntry = () => {
@@ -23,13 +22,15 @@ const DataEntry = () => {
   const [itemsPerPage] = useState(10); 
   const [showAddModal, setShowAddModal] = useState(false); 
   const [showEditModal, setShowEditModal] = useState(false); 
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [showArchiveModal, setShowArchiveModal] = useState(false); // State for ArchiveModal
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [users, setUsers] = useState([]); 
   const [employees, setEmployees] = useState([]); 
   const [loading, setLoading] = useState(true); 
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertVariant, setAlertVariant] = useState("success");
+
 
 
   // New state for sorting
@@ -48,9 +49,9 @@ const DataEntry = () => {
           ...doc.data(),
         }));
         setUsers(usersData || []); 
-        console.log("Fetched users:", usersData);
+       // console.log("Fetched users:", usersData);
       } catch (error) {
-        console.error("Error fetching users:", error);
+       // console.error("Error fetching users:", error);
         setUsers([]); 
       } finally {
         setLoading(false);
@@ -58,7 +59,7 @@ const DataEntry = () => {
     };
 
     fetchUsers();
-  }, [showAddModal, showEditModal, showDeleteModal, showArchiveModal]);
+  }, [showAddModal, showEditModal]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -114,7 +115,7 @@ const DataEntry = () => {
   };
 
   fetchEmployees();
-}, [showAddModal, showEditModal, showConfirmationModal, showArchiveModal]);
+}, [showAddModal, showEditModal]);
 
   // Replace your current handleArchiveClick with:
 const handleDeleteClick = (employee) => {
@@ -123,9 +124,24 @@ const handleDeleteClick = (employee) => {
 };
 
 // Add this function to handle successful deletion
-const handleDeleteSuccess = () => {
-  setEmployees([]); // This will trigger a refetch
+const handleDeleteSuccess = (deletedEmployeeId, error = null) => {
+  if (error) {
+    setAlertMessage("Failed to delete employee. Please try again.");
+    setAlertVariant("danger");
+  } else {
+    setEmployees(prevEmployees => 
+      prevEmployees.filter(employee => employee.id !== deletedEmployeeId)
+    );
+    setAlertMessage("Employee deleted successfully!");
+    setAlertVariant("success");
+  }
+  setShowAlert(true);
+  
+  setTimeout(() => {
+    setShowAlert(false);
+  }, 3000);
 };
+
 
 
 // Modify the filtered data to use employees instead of users
@@ -241,28 +257,7 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
   };
 
   // Function to handle the archive button click
-  const handleArchiveClick = (user) => {
-    setSelectedUser(user);
-    setShowConfirmationModal(true);
-  };
-
-// Function to archive the user
-const archiveUser = async () => {
-  try {
-    const userDocRef = doc(db, "admin", selectedUser.id);
-    const currentDate = new Date().toISOString(); // Get the current date in ISO format
-    await updateDoc(userDocRef, { 
-      status: "Disabled",
-      dateArchived: currentDate, // Add the current date to the dateArchived field
-    });
-    alert("User archived successfully!");
-    setShowConfirmationModal(false);
-    setUsers([]); // Reset users to trigger a re-fetch
-  } catch (error) {
-    console.error("Error archiving user:", error);
-    alert("Failed to archive user. Please try again.");
-  }
-};
+  
   // Function to render profile image
   const renderProfileImage = (profile) => {
     if (!profile) {
@@ -323,6 +318,17 @@ const archiveUser = async () => {
         />
 
         <div className="content">
+        {showAlert && (
+            <div className={`alert alert-${alertVariant} alert-dismissible fade show`} role="alert">
+              {alertMessage}
+              <button 
+                type="button" 
+                className="btn-close" 
+                onClick={() => setShowAlert(false)}
+                aria-label="Close"
+              ></button>
+            </div>
+          )}
           <h1 className="title-page">Data Entry List</h1>
           <div className="box mt-4">
             <div className="list-filter-container">
@@ -384,12 +390,6 @@ const archiveUser = async () => {
                 />
               </div>
               <button className="btn btn-primary search-button">Search</button>
-              <button
-                className="btn btn-warning search-button"
-                onClick={() => setShowArchiveModal(true)}
-              >
-                Archive
-              </button>
               <button
                 className="btn btn-success search-button"
                 onClick={() => setShowAddModal(true)}
@@ -592,16 +592,8 @@ const archiveUser = async () => {
       show={showDeleteModal}
       onHide={() => setShowDeleteModal(false)}
       employeeToDelete={selectedUser}
-      onDeleteSuccess={handleDeleteSuccess}
-      />
-
-      
-      <ArchiveModal
-        show={showArchiveModal}
-        onHide={() => setShowArchiveModal(false)}
-        onRestore={() => setUsers([])} // Trigger re-fetch on restore
-        onDelete={() => setUsers([])} // Trigger re-fetch on delete
-      />
+      onDeleteSuccess={handleDeleteSuccess} // Now passing the updated function
+    />
     </div>
   );
 };

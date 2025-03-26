@@ -1,38 +1,17 @@
-import React from "react";
-import { Modal, Button, Alert } from "react-bootstrap";
-import axios from "axios";
+import React from 'react';
+import { Modal, Button } from 'react-bootstrap';
+import axios from 'axios';
 
-const DeleteEmployeeModal = ({ 
-  show, 
-  onHide, 
-  employeeToDelete, 
-  onDeleteSuccess 
-}) => {
-  const [isDeleting, setIsDeleting] = React.useState(false);
-  const [error, setError] = React.useState("");
-
+const DeleteEmployeeModal = ({ show, onHide, employeeToDelete, onDeleteSuccess }) => {
   const handleDelete = async () => {
-    if (!employeeToDelete) return;
-    
-    setIsDeleting(true);
-    setError("");
-
     try {
-      // Delete from MySQL
       await axios.delete(`http://localhost:5000/employees/${employeeToDelete.id}`);
-      
-      // Delete from Google Sheets (assuming you have an endpoint for this)
-      await axios.post("http://localhost:5000/delete-from-spreadsheet", {
-        employeeId: employeeToDelete.id
-      });
-
-      onDeleteSuccess();
+      onDeleteSuccess(employeeToDelete.id);
       onHide();
-    } catch (err) {
-      console.error("Error deleting employee:", err);
-      setError(err.response?.data?.message || "Failed to delete employee");
-    } finally {
-      setIsDeleting(false);
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      onDeleteSuccess(null, error);
+      onHide();
     }
   };
 
@@ -42,23 +21,14 @@ const DeleteEmployeeModal = ({
         <Modal.Title>Confirm Delete</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        <p>
-          Are you sure you want to delete {employeeToDelete?.firstName} {employeeToDelete?.lastName}?
-          This action cannot be undone and will remove the employee from both the 
-          database and spreadsheet.
-        </p>
+        Are you sure you want to delete {employeeToDelete?.firstName} {employeeToDelete?.lastName} (Employee No: {employeeToDelete?.employeeNo})?
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={isDeleting}>
+        <Button variant="secondary" onClick={onHide}>
           Cancel
         </Button>
-        <Button 
-          variant="danger" 
-          onClick={handleDelete}
-          disabled={isDeleting}
-        >
-          {isDeleting ? "Deleting..." : "Confirm Delete"}
+        <Button variant="danger" onClick={handleDelete}>
+          Delete
         </Button>
       </Modal.Footer>
     </Modal>
