@@ -521,7 +521,6 @@ app.get("/employees", async (req, res) => {
       if (rows.length === 0) {
         return res.status(404).json({ error: "Employee not found" });
       }
-      
       res.status(200).json(rows[0]);
     } catch (error) {
       console.error("Error fetching employee:", error);
@@ -615,8 +614,6 @@ app.put("/employees/:id", validateEmployeeData, async (req, res) => {
       res.status(500).json({ error: "Failed to delete employee" });
     }
   });
-
-
 
 
 // Default route

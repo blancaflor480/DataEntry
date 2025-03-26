@@ -5,8 +5,8 @@ import "../style/accountmanager.css";
 import { auth } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import AddEmployeeModal from "../modal/addemployee";
-import EditAdminModal from "../modal/editadmin";
-import ConfirmationModal from "../modal/deleteadmin"; 
+import EditEmployeeModal from "../modal/editemployees";
+import DeleteEmployeeModal from "../modal/deleteemployee"; 
 import ArchiveModal from "../modal/archivemodal"; // Import the new ArchiveModal
 import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs, updateDoc } from "firebase/firestore";
@@ -26,6 +26,7 @@ const DataEntry = () => {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false); // State for ArchiveModal
   const [selectedUser, setSelectedUser] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [users, setUsers] = useState([]); 
   const [employees, setEmployees] = useState([]); 
   const [loading, setLoading] = useState(true); 
@@ -57,7 +58,7 @@ const DataEntry = () => {
     };
 
     fetchUsers();
-  }, [showAddModal, showEditModal, showConfirmationModal, showArchiveModal]);
+  }, [showAddModal, showEditModal, showDeleteModal, showArchiveModal]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -114,6 +115,17 @@ const DataEntry = () => {
 
   fetchEmployees();
 }, [showAddModal, showEditModal, showConfirmationModal, showArchiveModal]);
+
+  // Replace your current handleArchiveClick with:
+const handleDeleteClick = (employee) => {
+  setSelectedUser(employee);
+  setShowDeleteModal(true);
+};
+
+// Add this function to handle successful deletion
+const handleDeleteSuccess = () => {
+  setEmployees([]); // This will trigger a refetch
+};
 
 
 // Modify the filtered data to use employees instead of users
@@ -503,9 +515,14 @@ const archiveUser = async () => {
               <button className="btn btn-primary btn-sm me-2" onClick={() => handleEditClick(employee)}>
                 Edit
               </button>
-              <button className="btn btn-danger btn-sm" onClick={() => handleArchiveClick(employee)}>
+            
+              <button 
+                className="btn btn-danger btn-sm" 
+                onClick={() => handleDeleteClick(employee)}
+                >
                 Delete
               </button>
+
             </td>
           </tr>
         ))
@@ -560,22 +577,25 @@ const archiveUser = async () => {
       />
 
       {/* Render the EditAdminModal */}
-      <EditAdminModal
+      <EditEmployeeModal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}
-        userToEdit={selectedUser}
-        onEditAdmin={() => {
-          setUsers([]); // Reset users to trigger a re-fetch
+        employeeToEdit={selectedUser}
+        onEmployeeUpdated={() => {
+          // Refresh employee list after update
+          setEmployees([]);
         }}
       />
 
       {/* Render the ConfirmationModal */}
-      <ConfirmationModal
-        show={showConfirmationModal}
-        onHide={() => setShowConfirmationModal(false)}
-        onConfirm={archiveUser}
-        message="Are you sure you want to delete this user?"
+      <DeleteEmployeeModal
+      show={showDeleteModal}
+      onHide={() => setShowDeleteModal(false)}
+      employeeToDelete={selectedUser}
+      onDeleteSuccess={handleDeleteSuccess}
       />
+
+      
       <ArchiveModal
         show={showArchiveModal}
         onHide={() => setShowArchiveModal(false)}
