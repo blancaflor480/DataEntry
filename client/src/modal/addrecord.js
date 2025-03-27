@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import axios from 'axios';
 
@@ -8,11 +8,12 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
     type: 'NTE',
     dateIssued: new Date().toISOString().split('T')[0],
     details: '',
-    attachment: '',
+    attachment: null, // Changed from empty string to null for file handling
     status: 'Pending'
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [errors, setErrors] = useState({}); // Added errors state
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -22,19 +23,65 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
     }));
   };
 
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: files[0] 
+    }));
+
+    // Clear error for this field if it exists
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-
+  
     try {
       // Validate employee exists
-      const employeeExists = employees.some(emp => emp.employeeNo === formData.employeeNo);
-      if (!employeeExists) {
+      const employee = employees.find(emp => emp.employeeNo === formData.employeeNo);
+      
+    
+
+      if (!employee) {
         throw new Error('Employee number does not exist');
       }
 
-      const response = await axios.post('http://localhost:5000/records', formData);
+      // Validate required fields
+      const newErrors = {};
+      if (!formData.employeeNo) newErrors.employeeNo = 'Employee number is required';
+      if (!formData.type) newErrors.type = 'Record type is required';
+      if (!formData.dateIssued) newErrors.dateIssued = 'Date issued is required';
+      if (!formData.details) newErrors.details = 'Details are required';
+
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        return;
+      }
+  
+      // Create FormData for file upload
+      const formDataToSend = new FormData();
+      formDataToSend.append('employeeNo', formData.employeeNo);
+      formDataToSend.append('type', formData.type);
+      formDataToSend.append('dateIssued', formData.dateIssued);
+      formDataToSend.append('details', formData.details);
+      formDataToSend.append('status', formData.status);
+      
+      // If there's a file, append it
+      if (formData.attachment) {
+        formDataToSend.append('attachment', formData.attachment);
+      }
+  
+
+      const response = await axios.post("http://localhost:5000/records", formDataToSend);
+
+      console.log("Server response:", response.data);
+  
+      
       setSuccess('Record added successfully');
       onRecordAdded();
       setTimeout(() => {
@@ -44,9 +91,10 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
           type: 'NTE',
           dateIssued: new Date().toISOString().split('T')[0],
           details: '',
-          attachment: '',
+          attachment: null,
           status: 'Pending'
         });
+        setErrors({}); // Clear errors on success
       }, 1500);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
@@ -70,6 +118,7 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
               name="employeeNo"
               value={formData.employeeNo}
               onChange={handleChange}
+              isInvalid={!!errors.employeeNo}
               required
             >
               <option value="">Select Employee</option>
@@ -79,6 +128,9 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
                 </option>
               ))}
             </Form.Control>
+            <Form.Control.Feedback type="invalid">
+              {errors.employeeNo}
+            </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3">
@@ -88,12 +140,16 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
               name="type"
               value={formData.type}
               onChange={handleChange}
+              isInvalid={!!errors.type}
               required
             >
               <option value="NTE">Notice to Explain (NTE)</option>
               <option value="IR">Incident Report (IR)</option>
               <option value="Memo">Memorandum</option>
             </Form.Control>
+            <Form.Control.Feedback type="invalid">
+              {errors.type}
+            </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3">
@@ -103,8 +159,12 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
               name="dateIssued"
               value={formData.dateIssued}
               onChange={handleChange}
+              isInvalid={!!errors.dateIssued}
               required
             />
+            <Form.Control.Feedback type="invalid">
+              {errors.dateIssued}
+            </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3">
@@ -115,20 +175,26 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
               name="details"
               value={formData.details}
               onChange={handleChange}
+              isInvalid={!!errors.details}
               required
             />
+            <Form.Control.Feedback type="invalid">
+              {errors.details}
+            </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Attachment URL</Form.Label>
+            <Form.Label>Attachment</Form.Label>
             <Form.Control
               type="file"
               name="attachment"
-              value={formData.attachment}
-              onChange={handleChange}
-              placeholder="Optional Google Drive URL"
+              onChange={handleFileChange}
+              isInvalid={!!errors.attachment}
               accept=".pdf,.jpg,.jpeg,.png,.docx"
             />
+            <Form.Control.Feedback type="invalid">
+              {errors.attachment}
+            </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3">

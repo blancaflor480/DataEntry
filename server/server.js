@@ -254,6 +254,64 @@ async function updateEmployeeInSheet(employeeData) {
       throw error;
   }
 }
+
+
+// Add this function to your server.js
+async function deleteEmployeeFromSheet(employeeNo) {
+    try {
+      // Get all data from the sheet
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A:Z`
+      });
+  
+      const rows = response.data.values;
+      if (!rows || rows.length === 0) {
+        return; // Nothing to delete
+      }
+  
+      const headerRow = rows[0];
+      const employeeNoIndex = headerRow.findIndex(header => 
+        header.toLowerCase().includes('employee no') || 
+        header.toLowerCase().includes('employeeno')
+      );
+      
+      if (employeeNoIndex === -1) {
+        throw new Error('Employee No column not found in spreadsheet');
+      }
+  
+      // Find the row with matching employee number
+      const rowIndex = rows.findIndex((row, index) => 
+        index > 0 && row[employeeNoIndex] === employeeNo.toString()
+      );
+  
+      if (rowIndex === -1) {
+        return; // Employee not found in sheet
+      }
+  
+      // Delete the row (adding 2 because Sheets starts at 1 and header row)
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        resource: {
+          requests: [{
+            deleteDimension: {
+              range: {
+                sheetId: 0,
+                dimension: "ROWS",
+                startIndex: rowIndex,
+                endIndex: rowIndex + 1
+              }
+            }
+          }]
+        }
+      });
+  
+      console.log('Employee deleted from Google Sheets');
+    } catch (error) {
+      console.error('Error deleting employee from Google Sheets:', error);
+      throw error;
+    }
+  }
 // Endpoint to handle file upload to Google Drive
 app.post("/upload", upload.single("profile"), async (req, res) => {
     try {
@@ -600,21 +658,505 @@ app.put("/employees/:id", validateEmployeeData, async (req, res) => {
   
   // Endpoint to delete an employee
   app.delete("/employees/:id", async (req, res) => {
+    const connection = await pool.getConnection();
     try {
       const employeeId = req.params.id;
-      const [result] = await pool.query('DELETE FROM employees WHERE id = ?', [employeeId]);
       
-      if (result.affectedRows === 0) {
+      // First get the employee data before deleting (for Google Sheets)
+      const [employee] = await connection.query(
+        'SELECT * FROM employees WHERE id = ?', 
+        [employeeId]
+      );
+  
+      if (employee.length === 0) {
+        await connection.release();
         return res.status(404).json({ error: "Employee not found" });
       }
-      
-      res.status(200).json({ message: "Employee deleted successfully" });
+  
+      const employeeNo = employee[0].employeeNo;
+  
+      // Delete from MySQL
+      const [result] = await connection.query(
+        'DELETE FROM employees WHERE id = ?', 
+        [employeeId]
+      );
+  
+      if (result.affectedRows === 0) {
+        await connection.release();
+        return res.status(404).json({ error: "Employee not found" });
+      }
+  
+      // Delete from Google Sheets using employee number
+      try {
+        await deleteEmployeeFromSheet(employeeNo);
+      } catch (sheetError) {
+        console.error('Failed to delete from Google Sheets:', sheetError);
+        // Continue even if sheet deletion fails
+      }
+  
+      await connection.release();
+      res.status(200).json({ 
+        message: "Employee deleted successfully from both database and spreadsheet" 
+      });
     } catch (error) {
+      await connection.release();
       console.error("Error deleting employee:", error);
       res.status(500).json({ error: "Failed to delete employee" });
     }
   });
 
+//Record
+// Add these constants at the top with other configurations
+const RECORDS_SHEET_NAME = 'Employee_Records';
+const DRIVE_RECORDS_FOLDER_ID = '1RLnXZNZhnJzcBdauSdmruqqJweFD-lXy'; // Your shared folder ID
+const fs = require('fs');
+
+// Add this function to create employee folders
+async function getOrCreateEmployeeFolder(employeeNo, lastName) {
+  try {
+    const folderName = `Employee_${lastName}_${employeeNo}`;
+    
+    // Check if folder already exists
+    const { data: { files } } = await drive.files.list({
+      q: `'${DRIVE_RECORDS_FOLDER_ID}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder'`,
+      fields: 'files(id, name)'
+    });
+
+    if (files.length > 0) {
+      return files[0].id; // Return existing folder ID
+    }
+
+    // Create new folder if it doesn't exist
+    const folderMetadata = {
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [DRIVE_RECORDS_FOLDER_ID]
+    };
+
+    const { data: folder } = await drive.files.create({
+      resource: folderMetadata,
+      fields: 'id'
+    });
+
+    return folder.id;
+  } catch (error) {
+    console.error('Error creating employee folder:', error);
+    throw error;
+  }
+}
+
+// Add this function to verify records sheet exists
+async function verifyRecordsSheetExists() {
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+      fields: 'sheets.properties'
+    });
+    
+    const sheetExists = spreadsheet.data.sheets.some(
+      sheet => sheet.properties.title === RECORDS_SHEET_NAME
+    );
+    
+    if (!sheetExists) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        resource: {
+          requests: [{
+            addSheet: {
+              properties: {
+                title: RECORDS_SHEET_NAME
+              }
+            }
+          }]
+        }
+      });
+      
+      // Add headers to the new sheet
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${RECORDS_SHEET_NAME}!A1`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [[
+            'Record ID', 'Employee No', 'Employee Name', 'Type', 
+            'Date Issued', 'Details', 'Attachment', 'Status'
+          ]]
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying records sheet:', error);
+    throw error;
+  }
+}
+
+// Add this function to sync record to Google Sheets
+async function syncRecordToSheet(record, employeeName) {
+  try {
+    await verifyRecordsSheetExists();
+    
+    const row = [
+      record.recordID,
+      record.employeeNo,
+      employeeName,
+      record.type,
+      record.dateIssued.split('T')[0],
+      record.details,
+      record.attachment || 'N/A',
+      record.status
+    ];
+
+    // Append the new record
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${RECORDS_SHEET_NAME}!A:H`,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      resource: { values: [row] }
+    });
+  } catch (error) {
+    console.error('Error syncing record to sheet:', error);
+    throw error;
+  }
+}
+
+// Add this function to update record in Google Sheets
+async function updateRecordInSheet(record, employeeName) {
+  try {
+    // Get all records from sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${RECORDS_SHEET_NAME}!A:H`
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) return;
+
+    // Find the row with matching record ID
+    const rowIndex = rows.findIndex((row, index) => 
+      index > 0 && row[0] === record.recordID.toString()
+    );
+
+    if (rowIndex === -1) return; // Record not found in sheet
+
+    // Update the specific row
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${RECORDS_SHEET_NAME}!A${rowIndex + 1}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[
+          record.recordID,
+          record.employeeNo,
+          employeeName,
+          record.type,
+          record.dateIssued.split('T')[0],
+          record.details,
+          record.attachment || 'N/A',
+          record.status
+        ]]
+      }
+    });
+  } catch (error) {
+    console.error('Error updating record in sheet:', error);
+    throw error;
+  }
+}
+
+// Add this function to delete record from Google Sheets
+async function deleteRecordFromSheet(recordId) {
+  try {
+    // Get all records from sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${RECORDS_SHEET_NAME}!A:H`
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) return;
+
+    // Find the row with matching record ID
+    const rowIndex = rows.findIndex((row, index) => 
+      index > 0 && row[0] === recordId.toString()
+    );
+
+    if (rowIndex === -1) return; // Record not found in sheet
+
+    // Delete the row
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      resource: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: await getSheetId(RECORDS_SHEET_NAME),
+              dimension: "ROWS",
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1
+            }
+          }
+        }]
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting record from sheet:', error);
+    throw error;
+  }
+}
+
+// Helper function to get sheet ID by name
+async function getSheetId(sheetName) {
+  const { data } = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+    fields: 'sheets.properties'
+  });
+  
+  const sheet = data.sheets.find(s => s.properties.title === sheetName);
+  return sheet ? sheet.properties.sheetId : null;
+}
+
+
+// Endpoint to get all records with employee names
+app.get("/records", async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT er.*, e.firstName, e.lastName 
+      FROM employee_records er
+      LEFT JOIN employees e ON er.employeeNo = e.employeeNo
+      ORDER BY er.dateIssued DESC
+    `);
+    
+    // Format the data to include full employee name
+    const records = rows.map(row => ({
+      ...row,
+      employeeName: `${row.firstName} ${row.lastName}`
+    }));
+    
+    res.status(200).json(records);
+  } catch (error) {
+    console.error("Error fetching records:", error);
+    res.status(500).json({ error: "Failed to fetch records" });
+  }
+});
+
+// Update the POST /records endpoint
+app.post("/records", upload.single('attachment'), async (req, res) => {
+  try {
+    console.log("Request body:", req.body);
+    console.log("Request file:", req.file);
+    const { employeeNo, type, dateIssued, details, status } = req.body;
+    // Detailed logging of input validation
+    console.log("Employee No:", employeeNo);
+    console.log("Type:", type);
+    console.log("Date Issued:", dateIssued);
+    console.log("Details:", details);
+    console.log("Status:", status);
+    // Get employee details to create folder
+    const [employee] = await pool.query(
+      'SELECT lastName FROM employees WHERE employeeNo = ?',
+      [employeeNo]
+    );
+    
+    if (!employee.length) {
+      return res.status(400).json({ error: "Employee not found" });
+    }
+
+    // Create or get employee folder
+    const folderId = await getOrCreateEmployeeFolder(employeeNo, employee[0].lastName);
+    
+    let attachmentUrl = '';
+    
+    // If there's a file upload, handle it
+    if (req.file) {
+      // Format the filename as Type_LastName_DateIssued.ext
+      const fileExt = path.extname(req.file.originalname);
+      const formattedDate = new Date(dateIssued).toISOString().split('T')[0];
+      const fileName = `${type}_${employee[0].lastName}_${formattedDate}${fileExt}`;
+
+      const fileMetadata = {
+        name: fileName,
+        parents: [folderId]
+      };
+
+      const media = {
+        mimeType: req.file.mimetype,
+        body: fs.createReadStream(req.file.path),
+      };
+
+      const response = await drive.files.create({
+        resource: fileMetadata,
+        media: media,
+        fields: "id",
+      });
+
+      const fileId = response.data.id;
+      await drive.permissions.create({
+        fileId: fileId,
+        requestBody: { role: "reader", type: "anyone" },
+      });
+
+      attachmentUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+      fs.unlinkSync(req.file.path);
+    }
+
+    // Insert record into MySQL
+    const [result] = await pool.query(
+      `INSERT INTO employee_records 
+      (employeeNo, type, dateIssued, details, attachment, status) 
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [employeeNo, type, dateIssued, details, attachmentUrl || null, status || 'Pending']
+    );
+    
+    // Get the full record with employee name for Google Sheets
+    const [newRecord] = await pool.query(
+      `SELECT er.*, CONCAT(e.firstName, ' ', e.lastName) as employeeName 
+       FROM employee_records er
+       JOIN employees e ON er.employeeNo = e.employeeNo
+       WHERE er.recordID = ?`,
+      [result.insertId]
+    );
+
+    // Sync to Google Sheets
+    await syncRecordToSheet(newRecord[0], newRecord[0].employeeName);
+    
+    res.status(201).json({ 
+      message: "Record created successfully", 
+      recordId: result.insertId 
+    });
+  } catch (error) {
+    console.error("Error creating record:", error);
+    res.status(500).json({ error: "Failed to create record" });
+  }
+});
+
+// Update the PUT /records/:id endpoint
+app.put("/records/:id", upload.single('attachment'), async (req, res) => {
+  try {
+    const recordId = req.params.id;
+    const { employeeNo, type, dateIssued, details, status } = req.body;
+    
+    // First get the existing record and employee details
+    const [record] = await pool.query(
+      'SELECT * FROM employee_records WHERE recordID = ?',
+      [recordId]
+    );
+    
+    if (!record.length) {
+      return res.status(404).json({ error: "Record not found" });
+    }
+
+    const [employee] = await pool.query(
+      'SELECT lastName FROM employees WHERE employeeNo = ?',
+      [employeeNo]
+    );
+
+    if (!employee.length) {
+      return res.status(400).json({ error: "Employee not found" });
+    }
+
+    let attachmentUrl = record[0].attachment;
+    
+    // If there's a new file upload, handle it
+    if (req.file) {
+      // Format the filename as Type_LastName_DateIssued.ext
+      const fileExt = path.extname(req.file.originalname);
+      const formattedDate = new Date(dateIssued).toISOString().split('T')[0];
+      const fileName = `${type}_${employee[0].lastName}_${formattedDate}${fileExt}`;
+
+      const folderId = await getOrCreateEmployeeFolder(employeeNo, employee[0].lastName);
+
+      const fileMetadata = {
+        name: fileName,
+        parents: [folderId]
+      };
+
+      const media = {
+        mimeType: req.file.mimetype,
+        body: fs.createReadStream(req.file.path),
+      };
+
+      const response = await drive.files.create({
+        resource: fileMetadata,
+        media: media,
+        fields: "id",
+      });
+
+      const fileId = response.data.id;
+      await drive.permissions.create({
+        fileId: fileId,
+        requestBody: { role: "reader", type: "anyone" },
+      });
+
+      attachmentUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+      fs.unlinkSync(req.file.path);
+    }
+
+    // Update record in MySQL
+    const [result] = await pool.query(
+      `UPDATE employee_records SET 
+        employeeNo = ?, type = ?, dateIssued = ?, 
+        details = ?, attachment = ?, status = ?
+      WHERE recordID = ?`,
+      [employeeNo, type, dateIssued, details, attachmentUrl || null, status, recordId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Record not found" });
+    }
+    
+    // Get the updated record with employee name
+    const [updatedRecord] = await pool.query(
+      `SELECT er.*, CONCAT(e.firstName, ' ', e.lastName) as employeeName 
+       FROM employee_records er
+       JOIN employees e ON er.employeeNo = e.employeeNo
+       WHERE er.recordID = ?`,
+      [recordId]
+    );
+
+    // Update Google Sheets
+    await updateRecordInSheet(updatedRecord[0], updatedRecord[0].employeeName);
+    
+    res.status(200).json({ message: "Record updated successfully" });
+  } catch (error) {
+    console.error("Error updating record:", error);
+    res.status(500).json({ error: "Failed to update record" });
+  }
+});
+
+// Update the DELETE /records/:id endpoint
+app.delete("/records/:id", async (req, res) => {
+  try {
+    const recordId = req.params.id;
+    
+    // First get the record before deleting (for Google Sheets sync)
+    const [record] = await pool.query(
+      'SELECT * FROM employee_records WHERE recordID = ?',
+      [recordId]
+    );
+    
+    if (!record.length) {
+      return res.status(404).json({ error: "Record not found" });
+    }
+
+    // Delete from MySQL
+    const [result] = await pool.query(
+      'DELETE FROM employee_records WHERE recordID = ?',
+      [recordId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Record not found" });
+    }
+    
+    // Delete from Google Sheets
+    await deleteRecordFromSheet(recordId);
+    
+    res.status(200).json({ message: "Record deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting record:", error);
+    res.status(500).json({ error: "Failed to delete record" });
+  }
+});
 
 // Default route
 app.get("/", (req, res) => {
@@ -625,6 +1167,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   try {
       await verifySheetExists();
+      await verifyRecordsSheetExists();
       console.log(`Server running on port ${PORT}`);
   } catch (error) {
       console.error('Failed to initialize Google Sheet:', error);

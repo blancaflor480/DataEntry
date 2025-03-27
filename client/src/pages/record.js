@@ -99,10 +99,15 @@ const Record = () => {
       try {
         setLoading(true);
         const response = await axios.get('http://localhost:5000/records');
-        setRecords(response.data || []);
+        // Ensure we have an array even if response.data is null/undefined
+        setRecords(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
         console.error("Error fetching records:", error);
         setRecords([]);
+        // You might want to show an error alert here
+        setAlertMessage("Failed to load records. Please try again.");
+        setAlertVariant("danger");
+        setShowAlert(true);
       } finally {
         setLoading(false);
       }
@@ -148,10 +153,19 @@ const Record = () => {
 
   // Get employee name by employeeNo
   const getEmployeeName = (employeeNo) => {
+    if (!employeeNo) return "Unknown Employee";
+    
+    // First check if we have the employee in the records data (from the join)
+    const recordWithEmployee = records.find(r => r.employeeNo === employeeNo);
+    if (recordWithEmployee && recordWithEmployee.employeeName) {
+      return recordWithEmployee.employeeName;
+    }
+    
+    // Fallback to checking the employees list
     const employee = employees.find(emp => emp.employeeNo === employeeNo);
     return employee ? `${employee.firstName} ${employee.lastName}` : "Unknown Employee";
   };
-
+  
   const processedRecords = () => {
     let result = records?.filter((record) => {
       const typeMatches = 
