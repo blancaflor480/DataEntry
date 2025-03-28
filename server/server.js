@@ -795,18 +795,31 @@ async function syncRecordToSheet(record, employeeName) {
   try {
     await verifyRecordsSheetExists();
     
+    // Format the date properly
+    let formattedDate;
+    if (record.dateIssued instanceof Date) {
+      formattedDate = record.dateIssued.toISOString().split('T')[0];
+    } else if (typeof record.dateIssued === 'string') {
+      // If it's already in YYYY-MM-DD format, use as-is
+      formattedDate = record.dateIssued.includes('T') 
+        ? record.dateIssued.split('T')[0]
+        : record.dateIssued;
+    } else {
+      formattedDate = 'N/A';
+    }
+
     const row = [
       record.recordID,
       record.employeeNo,
       employeeName,
       record.type,
-      record.dateIssued.split('T')[0],
+      formattedDate,  // Use the properly formatted date
       record.details,
       record.attachment || 'N/A',
       record.status
     ];
 
-    // Append the new record
+    // Rest of the function remains the same
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${RECORDS_SHEET_NAME}!A:H`,
@@ -837,6 +850,17 @@ async function updateRecordInSheet(record, employeeName) {
       index > 0 && row[0] === record.recordID.toString()
     );
 
+    let formattedDate;
+    if (record.dateIssued instanceof Date) {
+      formattedDate = record.dateIssued.toISOString().split('T')[0];
+    } else if (typeof record.dateIssued === 'string') {
+      formattedDate = record.dateIssued.includes('T') 
+        ? record.dateIssued.split('T')[0]
+        : record.dateIssued;
+    } else {
+      formattedDate = 'N/A';
+    }
+
     if (rowIndex === -1) return; // Record not found in sheet
 
     // Update the specific row
@@ -850,7 +874,7 @@ async function updateRecordInSheet(record, employeeName) {
           record.employeeNo,
           employeeName,
           record.type,
-          record.dateIssued.split('T')[0],
+          record.formattedDate,
           record.details,
           record.attachment || 'N/A',
           record.status

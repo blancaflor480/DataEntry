@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/sidebar";
 import Header from "../components/header";
-import "../style/accountmanager.css";
+import "../style/record.css";
 import { auth } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import AddRecordModal from "../modal/addrecord";
@@ -436,6 +436,8 @@ const Record = () => {
                       </th>
 
                       <th>Details</th>
+                      
+                      <th>Attachment</th>
 
                       <th 
                         onClick={() => {
@@ -467,6 +469,22 @@ const Record = () => {
                           <td className="text-truncate" style={{maxWidth: '200px'}} title={record.details}>
                             {record.details.length > 50 ? `${record.details.substring(0, 50)}...` : record.details}
                           </td>
+                          <td>
+                            {record.attachment && record.attachment !== 'N/A' ? (
+                              <a 
+                                href={record.attachment} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-primary"
+                                title="View Attachment"
+                              >
+                                <i className="fas fa-file-alt"></i> View
+                              </a>
+                            ) : (
+                              <span title="No attachment available">No Attachment</span>
+                            )}
+                          </td>
+
                           <td>
                             <span className={`status-badge ${record.status?.toLowerCase()}`}>
                               {record.status}
