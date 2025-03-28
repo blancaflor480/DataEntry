@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import axios from 'axios';
 
@@ -8,12 +8,28 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
     type: 'NTE',
     dateIssued: new Date().toISOString().split('T')[0],
     details: '',
-    attachment: null, // Changed from empty string to null for file handling
+    attachment: null,
     status: 'Pending'
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [errors, setErrors] = useState({}); // Added errors state
+  const [errors, setErrors] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+
+  // Filter employees based on search term
+  useEffect(() => {
+    if (searchTerm) {
+      const filtered = employees.filter(emp => 
+        emp.employeeNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredEmployees(filtered);
+    } else {
+      setFilteredEmployees(employees);
+    }
+  }, [searchTerm, employees]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -23,6 +39,29 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
     }));
   };
 
+  const handleEmployeeSelect = (employeeNo) => {
+    setFormData(prev => ({
+      ...prev,
+      employeeNo
+    }));
+    setSearchTerm(employeeNo);
+    setShowDropdown(false);
+  };
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    setShowDropdown(true);
+    
+    // If the input is cleared, clear the form data too
+    if (!value) {
+      setFormData(prev => ({
+        ...prev,
+        employeeNo: ''
+      }));
+    }
+  };
+
   const handleFileChange = (e) => {
     const { name, files } = e.target;
     setFormData(prev => ({ 
@@ -30,7 +69,6 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
       [name]: files[0] 
     }));
 
-    // Clear error for this field if it exists
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
@@ -45,8 +83,6 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
       // Validate employee exists
       const employee = employees.find(emp => emp.employeeNo === formData.employeeNo);
       
-    
-
       if (!employee) {
         throw new Error('Employee number does not exist');
       }
@@ -71,16 +107,11 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
       formDataToSend.append('details', formData.details);
       formDataToSend.append('status', formData.status);
       
-      // If there's a file, append it
       if (formData.attachment) {
         formDataToSend.append('attachment', formData.attachment);
       }
-  
 
       const response = await axios.post("http://localhost:5000/records", formDataToSend);
-
-      console.log("Server response:", response.data);
-  
       
       setSuccess('Record added successfully');
       onRecordAdded();
@@ -94,7 +125,8 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
           attachment: null,
           status: 'Pending'
         });
-        setErrors({}); // Clear errors on success
+        setSearchTerm('');
+        setErrors({});
       }, 1500);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
@@ -111,28 +143,69 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
         {success && <Alert variant="success">{success}</Alert>}
         
         <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3">
-            <Form.Label>Employee Number *</Form.Label>
-            <Form.Control
-              as="select"
-              name="employeeNo"
-              value={formData.employeeNo}
-              onChange={handleChange}
-              isInvalid={!!errors.employeeNo}
-              required
-            >
-              <option value="">Select Employee</option>
-              {employees.map(emp => (
-                <option key={emp.employeeNo} value={emp.employeeNo}>
-                  {emp.employeeNo} - {emp.firstName} {emp.lastName}
-                </option>
-              ))}
-            </Form.Control>
-            <Form.Control.Feedback type="invalid">
-              {errors.employeeNo}
-            </Form.Control.Feedback>
+        <Form.Group className="mb-3" controlId="employeeSearch">
+            <Form.Label>Employee *</Form.Label>
+            <div className="position-relative">
+              <Form.Control
+                type="text"
+                placeholder="Search by employee number or name"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                isInvalid={!!errors.employeeNo}
+                required
+              />
+              <Form.Control.Feedback type="invalid">
+                {errors.employeeNo}
+              </Form.Control.Feedback>
+              
+              {/* Hidden input for form submission */}
+              <input
+                type="hidden"
+                name="employeeNo"
+                value={formData.employeeNo}
+              />
+              
+              {/* Dropdown with search results - Modified positioning */}
+              {showDropdown && filteredEmployees.length > 0 && (
+                <div className="dropdown-menu show w-100" style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  zIndex: 1000,
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  marginTop: '2px'
+                }}>
+                  {filteredEmployees.map(emp => (
+                    <button
+                      key={emp.employeeNo}
+                      type="button"
+                      className="dropdown-item text-start"
+                      onClick={() => handleEmployeeSelect(emp.employeeNo)}
+                      onMouseDown={(e) => e.preventDefault()} // Prevent input blur
+                    >
+                      {emp.employeeNo} - {emp.firstName} {emp.lastName}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Display selected employee info */}
+            {formData.employeeNo && (
+              <div className="mt-2 small text-muted">
+                Selected: {formData.employeeNo} - {
+                  employees.find(e => e.employeeNo === formData.employeeNo)?.firstName
+                } {
+                  employees.find(e => e.employeeNo === formData.employeeNo)?.lastName
+                }
+              </div>
+            )}
           </Form.Group>
 
+          {/* Rest of your form fields remain the same */}
           <Form.Group className="mb-3">
             <Form.Label>Record Type *</Form.Label>
             <Form.Control
@@ -145,7 +218,7 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
             >
               <option value="NTE">Notice to Explain (NTE)</option>
               <option value="IR">Incident Report (IR)</option>
-              <option value="Memo">Memorandum</option>
+              <option value="Leave">Leave</option>
             </Form.Control>
             <Form.Control.Feedback type="invalid">
               {errors.type}

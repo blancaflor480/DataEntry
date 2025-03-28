@@ -377,3 +377,22 @@ th:hover {
     background-color: #d1ecf1;
     color: #0c2f60;
   }
+
+  /* Style for the dropdown menu */
+  .dropdown-menu {
+    border: 1px solid rgba(0,0,0,.15);
+    border-radius: 0.25rem;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,.175);
+  }
+  
+  .dropdown-item {
+    padding: 0.5rem 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #16181b;
+  }

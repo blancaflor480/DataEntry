@@ -6,6 +6,7 @@ const { google } = require("googleapis");
 const path = require("path");
 require("dotenv").config();
 const mysql = require('mysql2/promise');
+const leaveEmployee = require('./leaveEmployee');
 
 const app = express();
 app.use(cors());
@@ -1179,6 +1180,70 @@ app.delete("/records/:id", async (req, res) => {
   } catch (error) {
     console.error("Error deleting record:", error);
     res.status(500).json({ error: "Failed to delete record" });
+  }
+});
+
+
+const API_BASE = '/api/v1';
+// Leave Routes
+app.get('/api/v1/leaves', async (req, res) => {
+  try {
+    const leaves = await leaveEmployee.getAllLeaves();
+    res.status(200).json(leaves);
+  } catch (error) {
+    console.error("Error fetching leaves:", error);
+    res.status(500).json({ error: "Failed to fetch leaves" });
+  }
+});
+
+app.get('/api/v1/employees', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM employees');
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error("Error fetching employees:", error);
+    res.status(500).json({ error: "Failed to fetch employees" });
+  }
+});
+
+app.post(`${API_BASE}/leaves`, upload.single('leave_form'), async (req, res) => {
+  try {
+    const leaveId = await leaveEmployee.createLeave(req.body, req.file);
+    res.status(201).json({ 
+      message: "Leave created successfully", 
+      leaveId 
+    });
+  } catch (error) {
+    console.error("Error creating leave:", error);
+    res.status(500).json({ error: error.message || "Failed to create leave" });
+  }
+});
+
+app.put('/leaves/:id', upload.single('leave_form'), async (req, res) => {
+  try {
+    const success = await leaveEmployee.updateLeave(req.params.id, req.body, req.file);
+    if (success) {
+      res.status(200).json({ message: "Leave updated successfully" });
+    } else {
+      res.status(404).json({ error: "Leave not found" });
+    }
+  } catch (error) {
+    console.error("Error updating leave:", error);
+    res.status(500).json({ error: error.message || "Failed to update leave" });
+  }
+});
+
+app.delete('/leaves/:id', async (req, res) => {
+  try {
+    const success = await leaveEmployee.deleteLeave(req.params.id);
+    if (success) {
+      res.status(200).json({ message: "Leave deleted successfully" });
+    } else {
+      res.status(404).json({ error: "Leave not found" });
+    }
+  } catch (error) {
+    console.error("Error deleting leave:", error);
+    res.status(500).json({ error: "Failed to delete leave" });
   }
 });
 

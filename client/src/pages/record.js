@@ -9,6 +9,7 @@ import EditRecordModal from "../modal/editrecord";
 import DeleteRecordModal from "../modal/deleterecord"; 
 import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs} from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 import axios from 'axios';
 
 const Record = () => {
@@ -31,7 +32,7 @@ const Record = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertVariant, setAlertVariant] = useState("success");
-
+  const navigate = useNavigate();
   // New state for sorting
   const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
@@ -305,7 +306,7 @@ const Record = () => {
           <h1 className="title-page">Record List</h1>
           <div className="box mt-4">
             <div className="list-filter-container">
-              <h3 className="text-type">List of Employee Records (NTE, IR, Memo)</h3>
+              <h3 className="text-type">List of Employee Records (NTE and IR)</h3>
               <div className="filter-container">
                 <label htmlFor="type-filter" className="me-2">
                   Filter by Type:
@@ -319,7 +320,6 @@ const Record = () => {
                   <option value="All">All</option>
                   <option value="NTE">Notice to Explain</option>
                   <option value="IR">Incident Report</option>
-                  <option value="Memo">Memorandum</option>
                 </select>
                 
                 <label htmlFor="status-filter" className="ms-3 me-2">
@@ -357,6 +357,14 @@ const Record = () => {
               >
                 Add Record
               </button>
+            
+              <button
+                className="btn btn-warning search-button"
+                onClick={() => navigate("/leave")} // This will navigate to the leave page
+              >
+                Leave Record
+              </button>
+            
             </div>
 
             {/* Table */}
