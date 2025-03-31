@@ -1,35 +1,32 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import "../style/header.css";
 
 const Header = ({ toggleSidebar, userEmail, userRole, handleLogout }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
-
   return (
     <div className="header-right d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
       {/* Sidebar Toggle Button (aligned to the start) */}
-      <button onClick={toggleSidebar} className="sidebar-toggle btn ">
+      <button onClick={toggleSidebar} className="sidebar-toggle btn">
         ☰
       </button>
 
-      {/* Profile Dropdown (aligned to the end) */}
-      <div className="profile-dropdown" onClick={toggleDropdown}>
-      <span className="profile-name me-2">{userEmail}</span> <span className="profile-name me-2">|</span> <span className="profile-name me-2">{userRole}</span> {/* Use userEmail */}
-        <i className="fas fa-user-circle"></i>
-        {isDropdownOpen && (
-          <div className="dropdown-menu show">
-            <Link to="/account-settings" className="dropdown-item">
-              Account Settings
-            </Link>
-            <button onClick={handleLogout} className="dropdown-item">
-              Logout
-            </button>
-          </div>
-        )}
+      {/* User Info and Actions (aligned to the end) */}
+      <div className="user-info-container d-flex align-items-center">
+        <div className="user-info me-3">
+          <span className="profile-name me-2">{userEmail}</span>
+          <span className="profile-name me-2">|</span>
+          <span className="profile-name me-2">{userRole}</span>
+          <i className="icon fas fa-user-circle me-2"></i>
+        </div>
+        
+        <div className="header-actions d-flex">
+          <Link to="/account-settings" className="btn btn-outline-secondary btn-sm me-2">
+            <i className="fas fa-cog me-1"></i> Settings
+          </Link>
+          <button onClick={handleLogout} className="btn btn-danger btn-sm">
+            <i className="fas fa-sign-out-alt me-1"></i> Logout
+          </button>
+        </div>
       </div>
     </div>
   );

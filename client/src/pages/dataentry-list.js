@@ -6,10 +6,13 @@ import { auth } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import AddEmployeeModal from "../modal/addemployee";
 import EditEmployeeModal from "../modal/editemployees";
+import ViewEmployeeModal from "../modal/viewemployee";
 import DeleteEmployeeModal from "../modal/deleteemployee"; 
 import { db } from "../firebase";
-import { doc, getDoc, collection, getDocs} from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, updateDoc, serverTimestamp} from "firebase/firestore";
 import axios from 'axios';
+import { useNavigate } from "react-router-dom";
+
 
 const DataEntry = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -22,6 +25,7 @@ const DataEntry = () => {
   const [itemsPerPage] = useState(10); 
   const [showAddModal, setShowAddModal] = useState(false); 
   const [showEditModal, setShowEditModal] = useState(false); 
+  const [showViewModal, setShowViewModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [users, setUsers] = useState([]); 
@@ -30,9 +34,9 @@ const DataEntry = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertVariant, setAlertVariant] = useState("success");
-
-
-
+  const [userId, setUserId] = useState(""); // Store user ID for logout tracking
+  const navigate = useNavigate();
+      
   // New state for sorting
   const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
@@ -59,7 +63,7 @@ const DataEntry = () => {
     };
 
     fetchUsers();
-  }, [showAddModal, showEditModal]);
+  }, [showViewModal, showAddModal, showEditModal]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -67,6 +71,7 @@ const DataEntry = () => {
         window.location.href = "/";
       } else {
         setUserEmail(user.email);
+        setUserId(user.uid); // Store user ID for logout tracking
 
         try {
           const userDocRef = doc(db, "admin", user.uid);
@@ -86,13 +91,53 @@ const DataEntry = () => {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
+      try {
+        // Update Firestore with logout timestamp before signing out
+        if (userId) {
+          const userDocRef = doc(db, "admin", userId);
+          
+          // Get current user data
+          const userDocSnap = await getDoc(userDocRef);
+          
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            
+            // Update the last login entry with logout time
+            const updatedHistory = userData.loginHistory?.map((entry, index) => {
+              if (index === userData.loginHistory.length - 1) {
+                return {
+                  ...entry,
+                  logoutTimestamp: new Date().toISOString(),
+                  sessionEnd: true
+                };
+              }
+              return entry;
+            }) || [];
+  
+            await updateDoc(userDocRef, {
+              lastLogout: serverTimestamp(),
+              loginHistory: updatedHistory
+            });
+          }
+        }
+  
+        // Clear local storage
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('expirationTime');
+        
+        // Sign out from Firebase
+        await signOut(auth);
+        
+        // Redirect to login page
+        navigate('/login');
+      } catch (error) {
+        console.error("Logout error:", error);
+        // Still proceed with logout even if recording fails
+        await signOut(auth);
+        navigate('/login');
+      }
+    };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -115,7 +160,12 @@ const DataEntry = () => {
   };
 
   fetchEmployees();
-}, [showAddModal, showEditModal]);
+}, [showViewModal, showAddModal, showEditModal]);
+
+const handleViewClick = (employee) => {
+  setSelectedUser(employee);
+  setShowViewModal(true);
+};
 
   // Replace your current handleArchiveClick with:
 const handleDeleteClick = (employee) => {
@@ -512,6 +562,10 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
             </td>
             <td>{employee.corporateEmail}</td> {/* Changed from email to corporateEmail */}
             <td>
+            <button className="btn btn-warning btn-sm me-2" onClick={() => handleViewClick(employee)}>
+                <i className="fas fa-eye me-1"></i> View
+            </button>
+
               <button className="btn btn-primary btn-sm me-2" onClick={() => handleEditClick(employee)}>
                 Edit
               </button>
@@ -576,7 +630,13 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
         onAddAdmin={handleAddAdmin}
       />
 
+    <ViewEmployeeModal
+      show={showViewModal}
+      onHide={() => setShowViewModal(false)}
+      employeeToView={selectedUser}
+    />
       {/* Render the EditAdminModal */}
+      
       <EditEmployeeModal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}

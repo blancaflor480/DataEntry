@@ -2,53 +2,146 @@ import React, { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { auth, db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import logo from "../style/image/originallogo.png";
 import "../style/login.css";
+import { FaSpinner } from "react-icons/fa";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const getClientIP = async () => {
+    try {
+      // First try a direct IP detection service
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      if (!ipResponse.ok) throw new Error('Primary IP service failed');
+      
+      const ipData = await ipResponse.json();
+      return ipData.ip;
+    } catch (error) {
+      console.warn("Primary IP detection failed, trying fallback...");
+      try {
+        // Fallback service
+        const fallbackResponse = await fetch('https://ipapi.co/json/');
+        if (!fallbackResponse.ok) throw new Error('Fallback IP service failed');
+        
+        const fallbackData = await fallbackResponse.json();
+        return fallbackData.ip;
+      } catch (fallbackError) {
+        console.error("Could not fetch IP address:", fallbackError);
+        return "unknown";
+      }
+    }
+  };
+
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError("");  // Clear previous errors
+    setError("");
+    setLoading(true);
+
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Sign in the user
+      const ipAddress = await getClientIP();
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      // Check the user's role in Firestore
       const userDocRef = doc(db, "admin", user.uid);
       const userDocSnap = await getDoc(userDocRef);
       
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
         const userRole = userData.role;
+        const userStatus = userData.status || "Active";
         
-        // Only allow Super Admin and Admin to access the dashboard
-        if (userRole === "Super Admin" || userRole === "Admin") {
-          console.log("Login successful! Role:", userRole);
+        if (userStatus === "Disabled") {
+          await auth.signOut();
+          setError("Your account has been disabled. Please contact your administrator.");
+          setLoading(false);
+          return;
+        }
+
+        if (userStatus === "Pending") {
+          await auth.signOut();
+          setError("Your account is pending approval. Please wait for administrator confirmation.");
+          setLoading(false);
+          return;
+        }
+
+        const allowedRoles = ["Super Admin", "Admin", "Manager"];
+        if (allowedRoles.includes(userRole)) {
+          // Create the login entry with current client-side timestamp first
+          const loginEntry = {
+            timestamp: new Date().toISOString(), // Use client-side timestamp for array
+            ipAddress: ipAddress, 
+            deviceInfo: navigator.userAgent
+        };
+
+          // Update document with serverTimestamp for lastLogin and client timestamp for array
+          await updateDoc(userDocRef, {
+            lastLogin: serverTimestamp(), // Server timestamp for lastLogin
+            lastLoginIp: ipAddress,
+            loginHistory: [...(userData.loginHistory || []), loginEntry]
+          });
+
           localStorage.setItem('token', user.uid);
-          //console.log("Token saved:", localStorage.getItem('token'));;
+          localStorage.setItem('userRole', userRole);
+          
+          const expirationTime = new Date().getTime() + 8 * 60 * 60 * 1000;
+          localStorage.setItem('expirationTime', expirationTime.toString());
+          
           navigate("/dashboard");
         } else {
-          // If user role is not Super Admin or Admin
-          await auth.signOut(); // Sign them out
+          await auth.signOut();
           setError("You don't have permission to access the dashboard.");
         }
       } else {
-        // If user document doesn't exist in admin collection
-        await auth.signOut(); // Sign them out
-        setError("User account not found or insufficient permissions.");
+        // Create new document with client-side timestamp for the first login entry
+        await setDoc(doc(db, "admin", user.uid), {
+          email: user.email,
+          role: "User",
+          status: "Active",
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          lastLoginIp: ipAddress,
+          loginHistory: [{
+            timestamp: new Date().toISOString(), // Client-side timestamp
+            ipAddress: ipAddress, 
+            deviceInfo: navigator.userAgent
+          }]
+        });
+        
+        await auth.signOut();
+        setError("User account not found. A new document was created, please contact administrator for access.");
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError("Invalid email or password.");
+      switch (err.code) {
+        case "auth/user-not-found":
+        case "auth/wrong-password":
+          setError("Invalid email or password.");
+          break;
+        case "auth/too-many-requests":
+          setError("Too many login attempts. Account temporarily locked. Try again later or reset your password.");
+          break;
+        case "auth/user-disabled":
+          setError("Your account has been disabled. Please contact your administrator.");
+          break;
+        default:
+          setError("Login failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,6 +167,7 @@ const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="username"
             />
           </div>
           <div className="form-group mb-3">
@@ -86,12 +180,27 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
+              minLength="8"
             />
             <p className="forgotpassword-link mt-2 text-end">
               <Link to="/forgot">Forgot Password?</Link>
             </p>
           </div>
-          <button type="submit" className="login-button w-100">Sign In</button>
+          <button 
+            type="submit" 
+            className="login-button w-100 d-flex justify-content-center align-items-center"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <FaSpinner className="spinner me-2" /> 
+                Signing In...
+              </>
+            ) : (
+              "Sign In"
+            )}
+          </button>
         </form>
         <p className="signup-link mt-3">
           Don't have an account? <Link to="/signup">Sign Up</Link>

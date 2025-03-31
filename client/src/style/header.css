@@ -1,53 +1,95 @@
 body {
-    font-family: 'Poppins', sans-serif;
-  }
+  font-family: 'Poppins', sans-serif;
+}
 
 .header {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    padding: 10px;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #ddd;
-  }
-  
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #ddd;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.sidebar-toggle {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* User info styling */
+.user-info-container {
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-right: 1px solid #ddd;
+}
+
+/* Make buttons stand out */
+.header-actions .btn {
+  font-weight: 500;
+  padding: 6px 12px;
+}
+
+.header-actions .btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
   .header-right {
-    display: flex;
-    align-items: center;
-    gap: 20px; /* Add space between the toggle button and profile dropdown */
+    flex-direction: column;
+    align-items: flex-start;
   }
-  .sidebar-toggle {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    margin-right: 10px; /* Add some spacing between the toggle button and profile dropdown */
+  
+  .user-info-container {
+    margin-top: 10px;
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .user-info {
+    font-size: 0.9rem;
+    border-right: none;
   }
 
+  .icon.fas.fa-user-circle {
+    font-size: 22px;
+  }
+}
 
-  .profile-dropdown {
-    position: relative;
-    cursor: pointer;
+/* For very small screens */
+@media (max-width: 576px) {
+  .user-info-container {
+    flex-direction: column;
+    align-items: flex-start;
   }
   
-  .dropdown-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
+  .header-actions {
+    margin-top: 10px;
   }
   
-  .dropdown-menu a {
-    display: block;
-    padding: 8px 16px;
-    text-decoration: none;
-    color: #333;
+  .user-info {
+    margin-bottom: 5px;
   }
-  
-  .dropdown-menu a:hover {
-    background-color: #f1f1f1;
-  }
+}
+
+/* Larger user icon */
+.icon.fas.fa-user-circle {
+  font-size: 24px; /* Increase the size of the user icon */
+  color: #495057; /* Optional: give it a nice color */
+}

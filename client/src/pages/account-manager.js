@@ -9,7 +9,9 @@ import EditAdminModal from "../modal/editadmin";
 import ConfirmationModal from "../modal/deleteadmin"; 
 import ArchiveModal from "../modal/archivemodal"; // Import the new ArchiveModal
 import { db } from "../firebase";
-import { doc, getDoc, collection, getDocs, updateDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, updateDoc, serverTimestamp } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+
 
 const AccountManager = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -27,7 +29,9 @@ const AccountManager = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]); 
   const [loading, setLoading] = useState(true); 
-
+  const [userId, setUserId] = useState(""); // Store user ID for logout tracking
+  const navigate = useNavigate();
+  
   // Fetch users from Firestore
   useEffect(() => {
     const fetchUsers = async () => {
@@ -58,6 +62,8 @@ const AccountManager = () => {
         window.location.href = "/";
       } else {
         setUserEmail(user.email);
+        setUserId(user.uid); // Store user ID for logout tracking
+
 
         try {
           const userDocRef = doc(db, "admin", user.uid);
@@ -77,13 +83,54 @@ const AccountManager = () => {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
+        try {
+          // Update Firestore with logout timestamp before signing out
+          if (userId) {
+            const userDocRef = doc(db, "admin", userId);
+            
+            // Get current user data
+            const userDocSnap = await getDoc(userDocRef);
+            
+            if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              
+              // Update the last login entry with logout time
+              const updatedHistory = userData.loginHistory?.map((entry, index) => {
+                if (index === userData.loginHistory.length - 1) {
+                  return {
+                    ...entry,
+                    logoutTimestamp: new Date().toISOString(),
+                    sessionEnd: true
+                  };
+                }
+                return entry;
+              }) || [];
+    
+              await updateDoc(userDocRef, {
+                lastLogout: serverTimestamp(),
+                loginHistory: updatedHistory
+              });
+            }
+          }
+    
+          // Clear local storage
+          localStorage.removeItem('token');
+          localStorage.removeItem('userRole');
+          localStorage.removeItem('expirationTime');
+          
+          // Sign out from Firebase
+          await signOut(auth);
+          
+          // Redirect to login page
+          navigate('/login');
+        } catch (error) {
+          console.error("Logout error:", error);
+          // Still proceed with logout even if recording fails
+          await signOut(auth);
+          navigate('/login');
+        }
+      };
+  
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
