@@ -37,7 +37,7 @@ const Dashboard = () => {
           if (userDocSnap.exists()) {
             setUserRole(userDocSnap.data().role);
           } else {
-            console.log("No such document!");
+            //console.log("No such document!");
           }
         } catch (error) {
           console.error("Error fetching user role:", error);
@@ -160,26 +160,41 @@ const Dashboard = () => {
 
           {/* Three Boxes in a Row */}
           <div className="boxes-container">
-            <div className="box">
-              <h3 className="text-start d-block">Total Employees</h3>
-              <p className="number-title text-start d-block">{employees.length}</p>
-            </div>
-            <div className="box">
-              <h3 className="text-start d-block">Active Employees</h3>
-              <p className="number-title text-start d-block">
-                {employees.filter(e => e.status === 'Active').length}
-              </p>
-            </div>
-            <div className="box">
-              <h3 className="text-start d-block">New Employees Today</h3>
-              <p className="number-title text-start d-block">
-                {employees.filter(e => {
-                  const today = new Date().toISOString().split('T')[0];
-                  return e.createdAt && e.createdAt.toString().includes(today);
-                }).length}
-              </p>
+          <div className="box">
+            <div className="d-flex align-items-center justify-content-between">
+              <div>
+                <h3 className="text-start d-block">Total Employees</h3>
+                <p className="number-title text-start d-block">{employees.length}</p>
+              </div>
+              <i className="fas fa-users fa-2x text-primary"></i>
             </div>
           </div>
+          <div className="box">
+            <div className="d-flex align-items-center justify-content-between">
+              <div>
+                <h3 className="text-start d-block">Active Employees</h3>
+                <p className="number-title text-start d-block">
+                  {employees.filter(e => e.status === 'Active').length}
+                </p>
+              </div>
+              <i className="fas fa-user-check fa-2x text-success"></i>
+            </div>
+          </div>
+          <div className="box">
+            <div className="d-flex align-items-center justify-content-between">
+              <div>
+                <h3 className="text-start d-block">New Employees Today</h3>
+                <p className="number-title text-start d-block">
+                  {employees.filter(e => {
+                    const today = new Date().toISOString().split('T')[0];
+                    return e.createdAt && e.createdAt.toString().includes(today);
+                  }).length}
+                </p>
+              </div>
+              <i className="fas fa-user-plus fa-2x text-warning"></i>
+            </div>
+          </div>
+        </div>
 
           {/* Status Distribution Chart */}
           <div className="box mt-4">

@@ -44,9 +44,9 @@ const AccountManager = () => {
           ...doc.data(),
         }));
         setUsers(usersData || []); 
-        console.log("Fetched users:", usersData);
+       // console.log("Fetched users:", usersData);
       } catch (error) {
-        console.error("Error fetching users:", error);
+        //console.error("Error fetching users:", error);
         setUsers([]); 
       } finally {
         setLoading(false);
@@ -72,7 +72,7 @@ const AccountManager = () => {
           if (userDocSnap.exists()) {
             setUserRole(userDocSnap.data().role);
           } else {
-            console.log("No such document!");
+            //console.log("No such document!");
           }
         } catch (error) {
           console.error("Error fetching user role:", error);
