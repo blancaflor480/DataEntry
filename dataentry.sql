@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 28, 2025 at 08:48 AM
+-- Generation Time: Apr 02, 2025 at 03:38 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -66,7 +66,7 @@ CREATE TABLE `employees` (
 
 INSERT INTO `employees` (`id`, `firstName`, `middleName`, `lastName`, `employeeNo`, `status`, `position`, `dateHire`, `endDate`, `footSize`, `weight`, `height`, `personalContact`, `personalEmail`, `corporateEmail`, `birthday`, `address`, `startingRate`, `currentMonthlyRate`, `currentDailyRate`, `bdoAccount`, `sssNumber`, `pagIbigNumber`, `philhealthNumber`, `tinNumber`, `joiningContractUrl`, `probationContractUrl`, `regularContractUrl`, `createdAt`, `updatedAt`) VALUES
 (1, 'Jade Ryan', 'Leba', 'Blancaflor', '101', 'Regular', 'Human Resources', '2025-03-27', '2025-04-01', '11', '100', '5\'7', '0938 043 8403', 'bryanblancaflor007@gmail.com', 'blancaflor480@gmail.com', '2002-08-17', 'Kaingin, Tramo Street, Bacoor', 10000.00, 10000.00, 750.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=19HSUxam8A4pH-UwaPYmp5gIjHiw7cij1', 'https://drive.google.com/uc?export=view&id=1-tf9AFQVte7sNp6iQNLyS1DB1VKrCkUU', 'https://drive.google.com/uc?export=view&id=1io1TmNptPWNHoWm0ZZ_Edu07nTzY-Eso', '2025-03-27 03:12:08', '2025-03-27 03:12:08'),
-(2, 'Juan', 'Del', 'Del Cruz', '102', 'Regular', 'Managing Director', '2025-03-28', '2025-03-31', '10', '70', '6\'0', '0938 043 8404', 'blancaflor480@gmail.com', 'bryanblancaflor007@gmail.com', '2002-08-17', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1v3RDrFl21jpg_d4CLXtsc1FzHCGNaaqo', 'https://drive.google.com/uc?export=view&id=14PtRDRn2KeiLJ_Eh6BOGWfnopgHz7z5K', 'https://drive.google.com/uc?export=view&id=1jmchphbaggDxGtMntq0Wjlj_r4bJaRvl', '2025-03-28 02:11:21', '2025-03-28 02:11:21');
+(3, 'Admin', 'Admin', 'Admin', '103', 'Active', 'Sales', '2025-03-25', '2025-03-27', '11', '100', '5\'8', '0938 043 8404', 'admin@gmail.com', 'bryanblancaflor007@gmail.com', '2002-08-14', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1ElPRgjEMuQvofwJy7iuPfldC7bXoo2Ln', 'https://drive.google.com/uc?export=view&id=11e-arxewKxeWu0TqARHzGhoohflB8GRq', 'https://drive.google.com/uc?export=view&id=1ksVjll2JaVEZNB-JRJGblEKRBAdXCNNz', '2025-03-28 08:23:12', '2025-03-31 05:54:22');
 
 -- --------------------------------------------------------
 
@@ -83,7 +83,7 @@ CREATE TABLE `employee_leave` (
   `end_date` date NOT NULL,
   `reason` text DEFAULT NULL,
   `leave_form` varchar(255) DEFAULT NULL,
-  `status` enum('Pending','Approved','Rejected') DEFAULT 'Pending',
+  `status` enum('Pending for Approval','Approved','Rejected') DEFAULT 'Pending for Approval',
   `approved_by` varchar(50) DEFAULT NULL,
   `remarks` text DEFAULT NULL,
   `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -95,8 +95,7 @@ CREATE TABLE `employee_leave` (
 --
 
 INSERT INTO `employee_leave` (`leave_id`, `employee_no`, `date_applied`, `leave_type`, `start_date`, `end_date`, `reason`, `leave_form`, `status`, `approved_by`, `remarks`, `createdAt`, `updatedAt`) VALUES
-(1, '102', '2025-03-28', 'Sick', '2025-03-28', '2025-03-29', 'aaaaa', 'https://drive.google.com/uc?export=view&id=1HZz7b4YtE5BeqTEtTuKfxVJhnpY4jW6q', 'Pending', NULL, NULL, '2025-03-28 07:11:26', '2025-03-28 07:11:26'),
-(2, '102', '2025-03-28', 'Maternity', '2025-03-28', '2025-03-29', 'aaaaa', 'https://drive.google.com/uc?export=view&id=1ybM3usS5ABS9_6G1u7xCPlYB_SArk7AO', 'Pending', NULL, NULL, '2025-03-28 07:22:55', '2025-03-28 07:22:55');
+(3, '103', '2025-03-28', 'Bereavement', '2025-03-29', '2025-04-05', 'fasfafasfasfafaf', 'https://drive.google.com/uc?export=view&id=1ddszdlEe7RTgaVQCod1E6bvK3Bg7i5C0', 'Pending for Approval', NULL, NULL, '2025-03-28 08:28:32', '2025-04-02 01:32:42');
 
 -- --------------------------------------------------------
 
@@ -111,7 +110,7 @@ CREATE TABLE `employee_records` (
   `dateIssued` date NOT NULL,
   `details` text NOT NULL,
   `attachment` varchar(255) DEFAULT NULL,
-  `status` enum('Pending','Resolved','Active') DEFAULT 'Pending'
+  `status` enum('Pending for Approval','Result','Approved') DEFAULT 'Pending for Approval'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -119,7 +118,7 @@ CREATE TABLE `employee_records` (
 --
 
 INSERT INTO `employee_records` (`recordID`, `employeeNo`, `type`, `dateIssued`, `details`, `attachment`, `status`) VALUES
-(1, '101', 'IR', '2025-03-28', 'HAHHAHAHA', 'https://drive.google.com/uc?export=view&id=1yOAxY04CWqJF6t9U1wRYdfnV8APznAmf', 'Pending');
+(1, '101', 'IR', '2025-03-25', 'HAHHAHAHA', 'https://drive.google.com/uc?export=view&id=1yOAxY04CWqJF6t9U1wRYdfnV8APznAmf', 'Result');
 
 --
 -- Indexes for dumped tables
@@ -156,19 +155,19 @@ ALTER TABLE `employee_records`
 -- AUTO_INCREMENT for table `employees`
 --
 ALTER TABLE `employees`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `employee_leave`
 --
 ALTER TABLE `employee_leave`
-  MODIFY `leave_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `leave_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `employee_records`
 --
 ALTER TABLE `employee_records`
-  MODIFY `recordID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `recordID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Constraints for dumped tables

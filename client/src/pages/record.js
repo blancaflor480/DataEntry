@@ -332,9 +332,9 @@ const Record = () => {
                   className="form-select"
                 >
                   <option value="All">All</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Resolved">Resolved</option>
-                  <option value="Active">Active</option>
+                  <option value="Pending for Approval">Pending for Approval</option>
+                  <option value="Result">Result</option>
+                  <option value="Approved">Approved</option>
                 </select>
               </div>
             </div>

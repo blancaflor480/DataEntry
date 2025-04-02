@@ -9,7 +9,7 @@ const EditRecordModal = ({ show, onHide, recordToEdit, employees, onRecordUpdate
     dateIssued: '',
     details: '',
     attachment: '',
-    status: 'Pending'
+    status: 'Pending for Approval'
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -95,7 +95,6 @@ const EditRecordModal = ({ show, onHide, recordToEdit, employees, onRecordUpdate
             >
               <option value="NTE">Notice to Explain (NTE)</option>
               <option value="IR">Incident Report (IR)</option>
-              <option value="Memo">Memorandum</option>
             </Form.Control>
           </Form.Group>
 
@@ -141,9 +140,9 @@ const EditRecordModal = ({ show, onHide, recordToEdit, employees, onRecordUpdate
               value={formData.status}
               onChange={handleChange}
             >
-              <option value="Pending">Pending</option>
-              <option value="Resolved">Resolved</option>
-              <option value="Active">Active</option>
+              <option value="Pending for Approval">Pending for Approval</option>
+              <option value="Result">Result</option>
+              <option value="Approved">Approved</option>
             </Form.Control>
           </Form.Group>
 

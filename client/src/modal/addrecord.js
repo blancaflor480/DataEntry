@@ -9,7 +9,7 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
     dateIssued: new Date().toISOString().split('T')[0],
     details: '',
     attachment: null,
-    status: 'Pending'
+    status: 'Pending for Approval'
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -278,9 +278,9 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
               value={formData.status}
               onChange={handleChange}
             >
-              <option value="Pending">Pending</option>
-              <option value="Resolved">Resolved</option>
-              <option value="Active">Active</option>
+              <option value="Pending for Approval">Pending for Approval</option>
+              <option value="Result">Result</option>
+              <option value="Approved">Approved</option>
             </Form.Control>
           </Form.Group>
 
