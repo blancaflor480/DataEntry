@@ -570,13 +570,14 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
                 Edit
               </button>
             
-              <button 
-                className="btn btn-danger btn-sm" 
-                onClick={() => handleDeleteClick(employee)}
+              {userRole === "Super Admin" && (
+                <button 
+                  className="btn btn-danger btn-sm" 
+                  onClick={() => handleDeleteClick(employee)}
                 >
-                Delete
-              </button>
-
+                  Delete
+                </button>
+              )}
             </td>
           </tr>
         ))

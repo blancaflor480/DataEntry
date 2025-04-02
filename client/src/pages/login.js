@@ -80,16 +80,15 @@ const Login = () => {
 
         const allowedRoles = ["Super Admin", "Admin", "Manager"];
         if (allowedRoles.includes(userRole)) {
-          // Create the login entry with current client-side timestamp first
+          
           const loginEntry = {
-            timestamp: new Date().toISOString(), // Use client-side timestamp for array
+            timestamp: new Date().toISOString(), 
             ipAddress: ipAddress, 
             deviceInfo: navigator.userAgent
         };
-
-          // Update document with serverTimestamp for lastLogin and client timestamp for array
+          
           await updateDoc(userDocRef, {
-            lastLogin: serverTimestamp(), // Server timestamp for lastLogin
+            lastLogin: serverTimestamp(), 
             lastLoginIp: ipAddress,
             loginHistory: [...(userData.loginHistory || []), loginEntry]
           });

@@ -487,9 +487,9 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
                               onChange={handleChange}
                               required
                             >
+                              <option value="Probation">Probation</option>
                               <option value="Active">Active</option>
                               <option value="Regular">Regular</option>
-                              <option value="Probation">Probation</option>
                               <option value="Inactive">Inactive</option>
                               <option value="Resigned">Resigned</option>
                               <option value="Terminate">Terminate</option>

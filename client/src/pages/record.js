@@ -505,12 +505,14 @@ const Record = () => {
                             >
                               Edit
                             </button>
-                            <button 
-                              className="btn btn-danger btn-sm" 
-                              onClick={() => handleDeleteClick(record)}
-                            >
-                              Delete
-                            </button>
+                            {userRole === "Super Admin" && (
+                              <button 
+                                className="btn btn-danger btn-sm" 
+                                onClick={() => handleDeleteClick(record)}
+                              >
+                                Delete
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))

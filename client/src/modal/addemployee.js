@@ -9,7 +9,7 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
       middleName: "",
       lastName: "",
       employeeNo: "",
-      status: "Active",
+      status: "Probation",
       position: "",
       dateHire: "",
       endDate: "",
@@ -472,7 +472,7 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
           middleName: "",
           lastName: "",
           employeeNo: "",
-          status: "Active",
+          status: "Probation",
           position: "",
           dateHire: "",
           endDate: "",
@@ -608,9 +608,10 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
                   onChange={handleChange}
                   required
                 >
+                  <option value="">Select Here</option>
+                  <option value="Probation">Probation</option>
                   <option value="Active">Active</option>
                   <option value="Regular">Regular</option>
-                  <option value="Probation">Probation</option>
                   <option value="Inactive">Inactive</option>
                   <option value="Resigned">Resigned</option>
                   <option value="Terminate">Terminate</option>
