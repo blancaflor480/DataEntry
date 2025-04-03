@@ -27,6 +27,7 @@ const ViewEmployeeModal = ({ show, onHide, employeeToView }) => {
         startingRate: "",
         currentMonthlyRate: "",
         currentDailyRate: "",
+        hoursRate: "",
         bdoAccount: "",
         sssNumber: "",
         pagIbigNumber: "",
@@ -71,6 +72,7 @@ const ViewEmployeeModal = ({ show, onHide, employeeToView }) => {
                 startingRate: employeeToView.startingRate ? `₱${employeeToView.startingRate}` : "N/A",
                 currentMonthlyRate: employeeToView.currentMonthlyRate ? `₱${employeeToView.currentMonthlyRate}` : "N/A",
                 currentDailyRate: employeeToView.currentDailyRate ? `₱${employeeToView.currentDailyRate}` : "N/A",
+                hoursRate: employeeToView.hoursRate ? `₱${employeeToView.hoursRate}` : "N/A",
                 bdoAccount: employeeToView.bdoAccount || "N/A",
                 sssNumber: employeeToView.sssNumber || "N/A",
                 pagIbigNumber: employeeToView.pagIbigNumber || "N/A",
@@ -117,7 +119,8 @@ const ViewEmployeeModal = ({ show, onHide, employeeToView }) => {
             const salaryInfo = [
                 ['Starting Rate:', employeeData.startingRate],
                 ['Current Monthly Rate:', employeeData.currentMonthlyRate],
-                ['Current Daily Rate:', employeeData.currentDailyRate]
+                ['Current Daily Rate:', employeeData.currentDailyRate],
+                ['Hours Rate:', employeeData.hoursRate]
             ];
             
             const govtInfo = [
@@ -256,6 +259,10 @@ const ViewEmployeeModal = ({ show, onHide, employeeToView }) => {
                     <tr>
                         <td style="padding: 5px; border-bottom: 1px solid #ddd;"><strong>Current Daily Rate:</strong></td>
                         <td style="padding: 5px; border-bottom: 1px solid #ddd;">${employeeData.currentDailyRate}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px; border-bottom: 1px solid #ddd;"><strong>Current Daily Rate:</strong></td>
+                        <td style="padding: 5px; border-bottom: 1px solid #ddd;">${employeeData.hoursRate}</td>
                     </tr>
                 </table>
                 
@@ -424,6 +431,9 @@ const ViewEmployeeModal = ({ show, onHide, employeeToView }) => {
                                 </Col>
                                 <Col md={4}>
                                     <p><strong>Current Daily Rate:</strong> {employeeData.currentDailyRate}</p>
+                                </Col>
+                                <Col md={4}>
+                                    <p><strong>Hours Rate:</strong> {employeeData.hoursRate}</p>
                                 </Col>
                             </Row>
                         </div>

@@ -1,9 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import "../style/sidebar.css";
 import logo from "../style/image/originallogo.png";
 
 const Sidebar = ({ isSidebarOpen, userRole }) => {
+  const [isRecordOpen, setIsRecordOpen] = useState(false);
+
+  const toggleRecordDropdown = () => {
+    setIsRecordOpen(!isRecordOpen);
+  };
+
   return (
     <div className={`sidebar ${isSidebarOpen ? "open" : "closed"}`}>
       <div className="sidebar-header">
@@ -13,35 +19,80 @@ const Sidebar = ({ isSidebarOpen, userRole }) => {
       <ul className="sidebar-menu">
         <li>
           <Link to="/dashboard">
-            <i className="fas fa-tachometer-alt"></i> Dashboard
+            <div className="menu-label">
+              <i className="fas fa-tachometer-alt"></i>
+              <span>Dashboard</span>
+            </div>
           </Link>
         </li>
         {userRole === "Super Admin" && (
           <li>
             <Link to="/account-manager">
-              <i className="fas fa-user"></i> Account Manager
+              <div className="menu-label">
+                <i className="fas fa-user"></i>
+                <span>Account Manager</span>
+              </div>
             </Link>
           </li>
         )}
         <li>
           <Link to="/dataentry-list">
-            <i className="fas fa-pencil-alt"></i> Data Entry
+            <div className="menu-label">
+              <i className="fas fa-pencil-alt"></i>
+              <span>Data Entry</span>
+            </div>
           </Link>
         </li>
-        <li>
-          <Link to="/record">
-            <i className="fas fa-file"></i> Record
-          </Link>
+        <li className="menu-item-with-children">
+          <div className="menu-item" onClick={toggleRecordDropdown}>
+            <div className="menu-label">
+              <i className="fas fa-file"></i>
+              <span>Records</span>
+            </div>
+            <i className={`fas fa-chevron-${isRecordOpen ? "up" : "down"} dropdown-arrow`}></i>
+          </div>
+          <ul className={`submenu ${isRecordOpen ? "open" : ""}`}>
+            <li>
+              <Link to="/record">
+                <div className="menu-label">
+                  <i className="fas fa-file-alt"></i>
+                  <span>Record NTE/IR</span>
+                </div>
+              </Link>
+            </li>
+            <li>
+              <Link to="/leave">
+                <div className="menu-label">
+                  <i className="fas fa-calendar-minus"></i>
+                  <span>Leave Record</span>
+                </div>
+              </Link>
+            </li>
+            <li>
+              <Link to="/absent">
+                <div className="menu-label">
+                  <i className="fas fa-calendar-times"></i>
+                  <span>Absent Record</span>
+                </div>
+              </Link>
+            </li>
+          </ul>
         </li>
         <li>
           <Link to="/report">
-            <i className="fas fa-chart-bar"></i> Report
+            <div className="menu-label">
+              <i className="fas fa-chart-bar"></i>
+              <span>Report</span>
+            </div>
           </Link>
         </li>
         {userRole === "Super Admin" && (
           <li>
             <Link to="/settings">
-              <i className="fas fa-cog"></i> Settings
+              <div className="menu-label">
+                <i className="fas fa-cog"></i>
+                <span>Settings</span>
+              </div>
             </Link>
           </li>
         )}

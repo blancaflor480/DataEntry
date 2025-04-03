@@ -100,7 +100,7 @@ async function insertEmployeeToSheet(employeeData) {
               'ID', 'First Name', 'Middle Name', 'Last Name', 'Employee No', 
               'Status', 'Position', 'Date Hired', 'End Date', 'Personal Contact',
               'Personal Email', 'Corporate Email', 'Birthday', 'Address',
-              'Starting Rate', 'Current Monthly Rate', 'Current Daily Rate',
+              'Starting Rate', 'Current Monthly Rate', 'Current Daily Rate','Hours Rate',
               'Foot Size', 'Weight', 'Height', 'BDO Account', 'SSS Number',
               'Pag-IBIG Number', 'PhilHealth Number', 'TIN Number',
               'Joining Contract URL', 'Probation Contract URL', 'Regular Contract URL'
@@ -135,6 +135,7 @@ async function insertEmployeeToSheet(employeeData) {
           employeeData.startingRate,
           employeeData.currentMonthlyRate,
           employeeData.currentDailyRate,
+          employeeData.hoursRate || '', // Added hoursRate
           employeeData.footSize || '',
           employeeData.weight || '',
           employeeData.height || '',
@@ -223,6 +224,7 @@ async function updateEmployeeInSheet(employeeData) {
           employeeData.startingRate,
           employeeData.currentMonthlyRate,
           employeeData.currentDailyRate,
+          employeeData.hoursRate || '', // Added hoursRate
           employeeData.footSize || '',
           employeeData.weight || '',
           employeeData.height || '',
@@ -422,13 +424,13 @@ const validateEmployeeData = (req, res, next) => {
     const { 
       firstName, lastName, employeeNo, status, position, dateHire,
       personalContact, personalEmail, corporateEmail, birthday, address,
-      startingRate, currentMonthlyRate, currentDailyRate
+      startingRate, currentMonthlyRate, currentDailyRate, hoursRate
     } = req.body;
   
     // Required fields validation
     if (!firstName || !lastName || !employeeNo || !status || !position || !dateHire ||
         !personalContact || !personalEmail || !corporateEmail || !birthday || !address ||
-        !startingRate || !currentMonthlyRate || !currentDailyRate) {
+        !startingRate || !currentMonthlyRate || !currentDailyRate || !hoursRate) {
       return res.status(400).json({ error: "Missing required fields" });
     }
   
@@ -461,7 +463,7 @@ const validateEmployeeData = (req, res, next) => {
           firstName, middleName, lastName, employeeNo, status, position,
           dateHire, endDate, footSize, weight, height, personalContact,
           personalEmail, corporateEmail, birthday, address, startingRate,
-          currentMonthlyRate, currentDailyRate, bdoAccount, sssNumber,
+          currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
           pagIbigNumber, philhealthNumber, tinNumber,
           joiningContractUrl, probationContractUrl, regularContractUrl
       } = req.body;
@@ -498,7 +500,8 @@ const validateEmployeeData = (req, res, next) => {
               address, 
               startingRate,
               currentMonthlyRate, 
-              currentDailyRate, 
+              currentDailyRate,
+              hoursRate: hoursRate || '', // Added hoursRate 
               bdoAccount: bdoAccount || '', 
               sssNumber: sssNumber || '',
               pagIbigNumber: pagIbigNumber || '', 
@@ -515,15 +518,15 @@ const validateEmployeeData = (req, res, next) => {
                   firstName, middleName, lastName, employeeNo, status, position,
                   dateHire, endDate, footSize, weight, height, personalContact,
                   personalEmail, corporateEmail, birthday, address, startingRate,
-                  currentMonthlyRate, currentDailyRate, bdoAccount, sssNumber,
+                  currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
                   pagIbigNumber, philhealthNumber, tinNumber,
                   joiningContractUrl, probationContractUrl, regularContractUrl
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                   firstName, middleName || null, lastName, employeeNo, status, position,
                   dateHire, endDate || null, footSize || null, weight || null, height || null, personalContact,
                   personalEmail, corporateEmail, birthday, address, startingRate,
-                  currentMonthlyRate, currentDailyRate, bdoAccount || null, sssNumber || null,
+                  currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount || null, sssNumber || null,
                   pagIbigNumber || null, philhealthNumber || null, tinNumber || null,
                   joiningContractUrl || null, probationContractUrl || null, regularContractUrl || null
               ]
@@ -609,7 +612,7 @@ app.put("/employees/:id", validateEmployeeData, async (req, res) => {
               firstName, middleName, lastName, employeeNo, status, position,
               dateHire, endDate, footSize, weight, height, personalContact,
               personalEmail, corporateEmail, birthday, address, startingRate,
-              currentMonthlyRate, currentDailyRate, bdoAccount, sssNumber,
+              currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
               pagIbigNumber, philhealthNumber, tinNumber,
               joiningContractUrl, probationContractUrl, regularContractUrl
           } = req.body;
@@ -620,7 +623,7 @@ app.put("/employees/:id", validateEmployeeData, async (req, res) => {
                   firstName = ?, middleName = ?, lastName = ?, employeeNo = ?, status = ?, position = ?,
                   dateHire = ?, endDate = ?, footSize = ?, weight = ?, height = ?, personalContact = ?,
                   personalEmail = ?, corporateEmail = ?, birthday = ?, address = ?, startingRate = ?,
-                  currentMonthlyRate = ?, currentDailyRate = ?, bdoAccount = ?, sssNumber = ?,
+                  currentMonthlyRate = ?, currentDailyRate = ?, hoursRate = ?, bdoAccount = ?, sssNumber = ?,
                   pagIbigNumber = ?, philhealthNumber = ?, tinNumber = ?,
                   joiningContractUrl = ?, probationContractUrl = ?, regularContractUrl = ?
               WHERE id = ?`,
@@ -628,7 +631,7 @@ app.put("/employees/:id", validateEmployeeData, async (req, res) => {
                   firstName, middleName || null, lastName, employeeNo, status, position,
                   dateHire, endDate || null, footSize || null, weight || null, height || null, personalContact,
                   personalEmail, corporateEmail, birthday, address, startingRate,
-                  currentMonthlyRate, currentDailyRate, bdoAccount || null, sssNumber || null,
+                  currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount || null, sssNumber || null,
                   pagIbigNumber || null, philhealthNumber || null, tinNumber || null,
                   joiningContractUrl || null, probationContractUrl || null, regularContractUrl || null,
                   employeeId
@@ -711,6 +714,7 @@ app.put("/employees/:id", validateEmployeeData, async (req, res) => {
 const RECORDS_SHEET_NAME = 'Employee_Records';
 const DRIVE_RECORDS_FOLDER_ID = '1RLnXZNZhnJzcBdauSdmruqqJweFD-lXy'; // Your shared folder ID
 const fs = require('fs');
+const e = require("express");
 
 // Add this function to create employee folders
 async function getOrCreateEmployeeFolder(employeeNo, lastName) {

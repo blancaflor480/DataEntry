@@ -24,6 +24,7 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
       startingRate: "",
       currentMonthlyRate: "",
       currentDailyRate: "",
+      hoursRate: "",
       bdoAccount: "",
       sssNumber: "",
       pagIbigNumber: "",
@@ -164,6 +165,8 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
       validateNumericField('startingRate', formData.startingRate, 0, 1000000, 'Starting rate');
       validateNumericField('currentMonthlyRate', formData.currentMonthlyRate, 0, 1000000, 'Monthly rate');
       validateNumericField('currentDailyRate', formData.currentDailyRate, 0, 100000, 'Daily rate');
+      validateNumericField('hoursRate', formData.hoursRate, 0, 100000, 'Hours rate');
+
 
 // Government ID validations
       if (!formData.bdoAccount.trim()) {
@@ -453,6 +456,7 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
           startingRate: formData.startingRate,
           currentMonthlyRate: formData.currentMonthlyRate,
           currentDailyRate: formData.currentDailyRate,
+          hoursRate: formData.hoursRate,
           bdoAccount: formData.bdoAccount,
           sssNumber: formData.sssNumber,
           pagIbigNumber: formData.pagIbigNumber,
@@ -487,6 +491,7 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
           startingRate: "",
           currentMonthlyRate: "",
           currentDailyRate: "",
+          hoursRate: "",
           bdoAccount: "",
           sssNumber: "",
           pagIbigNumber: "",
@@ -895,6 +900,23 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
                 />
                 <Form.Control.Feedback type="invalid">
                   {errors.currentDailyRate}
+                </Form.Control.Feedback>
+              </Form.Group>
+            </Col>
+            <Col>
+              <Form.Group controlId="hoursRate">
+                <Form.Label>Hours Rate <span className="req">*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  name="hoursRate"
+                  value={formData.hoursRate}
+                  onChange={handleChange}
+                  isInvalid={!!errors.hoursRate}
+                  placeholder="ex: 100"  
+                  required
+                />
+                <Form.Control.Feedback type="invalid">
+                  {errors.hoursRate}
                 </Form.Control.Feedback>
               </Form.Group>
             </Col>

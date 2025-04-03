@@ -89,6 +89,7 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
       startingRate: "",
       currentMonthlyRate: "",
       currentDailyRate: "",
+      hoursRate: "",
       bdoAccount: "",
       sssNumber: "",
       pagIbigNumber: "",
@@ -134,6 +135,7 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
           startingRate: employeeToEdit.startingRate || "",
           currentMonthlyRate: employeeToEdit.currentMonthlyRate || "",
           currentDailyRate: employeeToEdit.currentDailyRate || "",
+          hoursRate: employeeToEdit.hoursRate || "",
           bdoAccount: employeeToEdit.bdoAccount || "",
           sssNumber: employeeToEdit.sssNumber || "",
           pagIbigNumber: employeeToEdit.pagIbigNumber || "",
@@ -362,6 +364,7 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
           startingRate: formData.startingRate,
           currentMonthlyRate: formData.currentMonthlyRate,
           currentDailyRate: formData.currentDailyRate,
+          hoursRate: formData.hoursRate,
           bdoAccount: formData.bdoAccount,
           sssNumber: formData.sssNumber,
           pagIbigNumber: formData.pagIbigNumber,
@@ -753,6 +756,23 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
                               onChange={handleChange}
                               isInvalid={!!errors.currentDailyRate}
                               placeholder="ex: 750"  
+                              required
+                            />
+                            <Form.Control.Feedback type="invalid">
+                              {errors.currentDailyRate}
+                            </Form.Control.Feedback>
+                          </Form.Group>
+                        </Col>
+                        <Col>
+                          <Form.Group controlId="hoursRate">
+                            <Form.Label>Hours Rate <span className="req">*</span></Form.Label>
+                            <Form.Control
+                              type="text"
+                              name="hoursRate"
+                              value={formData.hoursRate}
+                              onChange={handleChange}
+                              isInvalid={!!errors.hoursRate}
+                              placeholder="ex: 100"  
                               required
                             />
                             <Form.Control.Feedback type="invalid">

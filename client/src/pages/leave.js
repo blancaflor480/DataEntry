@@ -343,7 +343,7 @@ const Leave = () => {
                   className="form-select"
                 >
                   <option value="All">All</option>
-                  <option value="Pending">Pending</option>
+                  <option value="Pending for Approval">Pending for Approval</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
                 </select>
