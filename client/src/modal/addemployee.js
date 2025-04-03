@@ -16,6 +16,7 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
       footSize: "",
       weight: "",
       height: "",
+      profileImage: null,
       personalContact: "",
       personalEmail: "",
       corporateEmail: "",
@@ -263,6 +264,16 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
       }
     }
 
+    if (!formData.profileImage) {
+      newErrors.profileImage = "Profile Image is required";
+    } else {
+      if (!validateFileSize(formData.profileImage)) {
+        newErrors.profileImage = "Profile Image file must be less than 5MB";
+      }
+      if (!validateFileType(formData.profileImage)) {
+        newErrors.profileImage = "Invalid file type. Please upload PDF, JPEG, or PNG";
+      }
+    }
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     };
@@ -411,6 +422,21 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
           return;
         }
 
+         // Upload profile image first
+      if (formData.profileImage) {
+        const profileFormData = new FormData();
+        profileFormData.append("profileImage", formData.profileImage);
+        const profileResponse = await axios.post(
+          "http://localhost:5000/upload-profile", 
+          profileFormData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        );
+        fileUrls.profileImageUrl = profileResponse.data.fileUrl;
+      }
         // Upload joining contract if exists
         if (formData.joiningContract) {
           const joiningContractFormData = new FormData();
@@ -500,6 +526,7 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
           joiningContract: null,
           probationContract: null,
           regularContract: null,
+          profileImage: null,
         });
         
         // Notify parent component
@@ -737,17 +764,17 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
 
               
             </Col>
-            <Form.Group controlId="joiningContract ">
+            <Form.Group controlId="profileImage ">
                 <Form.Label className="mt-3">Profile Image <span className="req">*</span></Form.Label>
                 <Form.Control
                   type="file"
                   name="profileImage"
                   isInvalid={!!errors.profileImage}
                   onChange={handleFileChange}
-                  accept=".pdf,.jpg,.jpeg,.png"
+                  accept=".jpg,.jpeg,.png"
                 />
                 <Form.Control.Feedback type="invalid">
-                  {errors.joiningContract}
+                  {errors.profileImage}
                 </Form.Control.Feedback>
               </Form.Group>
               

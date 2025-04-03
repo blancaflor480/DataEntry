@@ -79,6 +79,7 @@ async function verifySheetExists() {
       throw error;
   }
 }
+
 async function insertEmployeeToSheet(employeeData) {
   try {
       // First, check if the sheet exists and has headers
@@ -103,7 +104,7 @@ async function insertEmployeeToSheet(employeeData) {
               'Starting Rate', 'Current Monthly Rate', 'Current Daily Rate','Hours Rate',
               'Foot Size', 'Weight', 'Height', 'BDO Account', 'SSS Number',
               'Pag-IBIG Number', 'PhilHealth Number', 'TIN Number',
-              'Joining Contract URL', 'Probation Contract URL', 'Regular Contract URL'
+              'Joining Contract URL', 'Probation Contract URL', 'Regular Contract URL', 'Profile Image URL'
           ];
 
           await sheets.spreadsheets.values.update({
@@ -146,7 +147,8 @@ async function insertEmployeeToSheet(employeeData) {
           employeeData.tinNumber || '',
           employeeData.joiningContractUrl || '',
           employeeData.probationContractUrl || '',
-          employeeData.regularContractUrl || ''
+          employeeData.regularContractUrl || '',
+          employeeData.profileImageUrl || '' // Added profileImageUrl
       ];
 
       // Append the row to the sheet
@@ -235,7 +237,8 @@ async function updateEmployeeInSheet(employeeData) {
           employeeData.tinNumber || '',
           employeeData.joiningContractUrl || '',
           employeeData.probationContractUrl || '',
-          employeeData.regularContractUrl || ''
+          employeeData.regularContractUrl || '',
+          employeeData.profileImageUrl || '' // Added profileImageUrl
       ];
 
       // Update the specific row
@@ -315,6 +318,52 @@ async function deleteEmployeeFromSheet(employeeNo) {
       throw error;
     }
   }
+
+  // Add this endpoint for profile image uploads
+app.post("/upload-profile", upload.single("profileImage"), async (req, res) => {
+  try {
+      if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileMetadata = {
+          name: req.file.originalname,
+          parents: ["1GXIhhayccVZS9lWRHWia7X8cUXHUMIcp"], // Your profile images folder ID
+      };
+
+      const media = {
+          mimeType: req.file.mimetype,
+          body: require("fs").createReadStream(req.file.path),
+      };
+
+      const response = await drive.files.create({
+          resource: fileMetadata,
+          media: media,
+          fields: "id",
+      });
+
+      const fileId = response.data.id;
+
+      // Make the file publicly accessible
+      await drive.permissions.create({
+          fileId: fileId,
+          requestBody: {
+              role: "reader",
+              type: "anyone",
+          },
+      });
+
+      const fileUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+      // Delete the temporary file
+      require("fs").unlinkSync(req.file.path);
+
+      res.status(200).json({ fileUrl });
+  } catch (error) {
+      console.error("Error uploading profile image:", error);
+      res.status(500).json({ error: "Failed to upload profile image" });
+  }
+});
 // Endpoint to handle file upload to Google Drive
 app.post("/upload", upload.single("profile"), async (req, res) => {
     try {
@@ -465,7 +514,7 @@ const validateEmployeeData = (req, res, next) => {
           personalEmail, corporateEmail, birthday, address, startingRate,
           currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
           pagIbigNumber, philhealthNumber, tinNumber,
-          joiningContractUrl, probationContractUrl, regularContractUrl
+          joiningContractUrl, probationContractUrl, regularContractUrl, profileImageUrl
       } = req.body;
 
       try {
@@ -509,7 +558,8 @@ const validateEmployeeData = (req, res, next) => {
               tinNumber: tinNumber || '',
               joiningContractUrl: joiningContractUrl || '', 
               probationContractUrl: probationContractUrl || '', 
-              regularContractUrl: regularContractUrl || ''
+              regularContractUrl: regularContractUrl || '',
+              profileImageUrl: profileImageUrl || '' // Added profileImageUrl
           };
 
           // Insert employee data into MySQL
@@ -520,15 +570,15 @@ const validateEmployeeData = (req, res, next) => {
                   personalEmail, corporateEmail, birthday, address, startingRate,
                   currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
                   pagIbigNumber, philhealthNumber, tinNumber,
-                  joiningContractUrl, probationContractUrl, regularContractUrl
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  joiningContractUrl, probationContractUrl, regularContractUrl, profileImageUrl
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                   firstName, middleName || null, lastName, employeeNo, status, position,
                   dateHire, endDate || null, footSize || null, weight || null, height || null, personalContact,
                   personalEmail, corporateEmail, birthday, address, startingRate,
                   currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount || null, sssNumber || null,
                   pagIbigNumber || null, philhealthNumber || null, tinNumber || null,
-                  joiningContractUrl || null, probationContractUrl || null, regularContractUrl || null
+                  joiningContractUrl || null, probationContractUrl || null, regularContractUrl || null, profileImageUrl || null
               ]
           );
 
