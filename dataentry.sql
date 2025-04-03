@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 03, 2025 at 04:52 AM
+-- Generation Time: Apr 03, 2025 at 08:41 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -58,15 +58,19 @@ CREATE TABLE `employees` (
   `probationContractUrl` text DEFAULT NULL,
   `regularContractUrl` text DEFAULT NULL,
   `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `profileImageUrl` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `employees`
 --
 
-INSERT INTO `employees` (`id`, `firstName`, `middleName`, `lastName`, `employeeNo`, `status`, `position`, `dateHire`, `endDate`, `footSize`, `weight`, `height`, `personalContact`, `personalEmail`, `corporateEmail`, `birthday`, `address`, `startingRate`, `currentMonthlyRate`, `currentDailyRate`, `hoursRate`, `bdoAccount`, `sssNumber`, `pagIbigNumber`, `philhealthNumber`, `tinNumber`, `joiningContractUrl`, `probationContractUrl`, `regularContractUrl`, `createdAt`, `updatedAt`) VALUES
-(1, 'admin', 'admin', 'admin', '2021', 'Probation', 'Human Resources', '2025-04-02', '2025-04-29', '11', '70', '6\'0', '0938 043 8404', 'bryanblancaflor007@gmail.com', 'matlex@gmail.com', '2002-08-16', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, 100.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1QamFo7k8VEQ17ULI0GzRCYpLk568e1bw', 'https://drive.google.com/uc?export=view&id=1c7zq1fe2QCKFM63onHtfiV6ihp-7Vo9w', 'https://drive.google.com/uc?export=view&id=1pVTy-uFxCDyw1deR8_VgMyBw-1V4gEz2', '2025-04-03 01:53:43', '2025-04-03 02:51:38');
+INSERT INTO `employees` (`id`, `firstName`, `middleName`, `lastName`, `employeeNo`, `status`, `position`, `dateHire`, `endDate`, `footSize`, `weight`, `height`, `personalContact`, `personalEmail`, `corporateEmail`, `birthday`, `address`, `startingRate`, `currentMonthlyRate`, `currentDailyRate`, `hoursRate`, `bdoAccount`, `sssNumber`, `pagIbigNumber`, `philhealthNumber`, `tinNumber`, `joiningContractUrl`, `probationContractUrl`, `regularContractUrl`, `createdAt`, `updatedAt`, `profileImageUrl`) VALUES
+(1, 'admin', 'admin', 'admin', '111', 'Probation', 'Human Resources', '2025-04-03', '2025-04-30', '11', '70', '6\'0', '0938 043 8404', 'bryanblancaflor007@gmail.com', 'matlex@gmail.com', '2002-08-17', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, 110.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1AtyOqq8RZWaB8irEGBQfIkoJvCP-fg5u', 'https://drive.google.com/uc?export=view&id=1Sq-zcMhDPHCnoX-UBZ67iFNjb4zIfIbP', 'https://drive.google.com/uc?export=view&id=1IZVm__TEob1VYEpSutAxwt1qiXoZVQ4U', '2025-04-03 03:54:51', '2025-04-03 03:54:51', 'https://drive.google.com/uc?export=view&id=1jbQAleRqTEH6CIWxAOsn3r9id9eEgqQW'),
+(2, 'admin', 'admin', 'admin', '2021', 'Terminate', 'Human Resources', '2025-04-02', '2025-04-29', '11', '70', '6\'0', '0938 043 8404', 'bryanblancaflor007@gmail.com', 'matlex12222@gmail.com', '2002-08-16', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, 110.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1SoCt91l2-YOpO22hWrDjYNV7EwD1gHAb', 'https://drive.google.com/uc?export=view&id=1ADZ09eOsAPI7xYvsDHlyx7giF_R3muOR', 'https://drive.google.com/uc?export=view&id=1fjVMQpKhVPZR3x6hun80bX4cGfjCU5WN', '2025-04-03 03:56:59', '2025-04-03 05:54:47', 'https://drive.google.com/uc?export=view&id=1M23VlLQOwUj6gDTsl_UY78c-Q27SzK67'),
+(3, 'Jade ', 'Ryan', 'Blancaflor', '2021-001', 'Active', 'Human Resources', '2025-04-01', '2025-04-28', '11', '100', '5\'8', '0938 043 8404', 'jaderyan@gmail.com', 'jaderyan007@gmail.com', '2002-08-15', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, 110.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1k1Hn-WLxWdPeoc7tqmjD5rlUt4l_UXvQ', 'https://drive.google.com/uc?export=view&id=1G4zvN8GlGEY1anDqFjimT8K9tBbkuLzS', 'https://drive.google.com/uc?export=view&id=1Y9ZW0PI9z_vYTp-eDXCTffqTGV7q92-u', '2025-04-03 03:59:11', '2025-04-03 05:23:28', 'https://drive.google.com/uc?export=view&id=1SAeKBvUL6D7eZbyiwnnA7gnSbiduGXSt'),
+(4, 'jade', 'admin', 'Blancaflor', '2021-002', 'Inactive', 'Human Resources', '2025-04-03', '2025-04-30', '11', '70', '6\'0', '0938 043 8404', 'bryanblancaflor007@gmail.com', 'matlex12222@gmail.com', '2002-08-17', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, 110.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1p-6ZSD1RX-4R7tkE64PwaAl7xORrHGce', 'https://drive.google.com/uc?export=view&id=1f-wWcRwkCidx83mTCaLwyYUW5QhNmUSe', 'https://drive.google.com/uc?export=view&id=1wcQQ7gU85MbUFriP52lk83MSlrg_a7Bn', '2025-04-03 06:10:15', '2025-04-03 06:10:15', 'https://drive.google.com/uc?export=view&id=1bwwbQ1qEbWbpe4So0flT2T8IjmjxVAor');
 
 -- --------------------------------------------------------
 
@@ -95,7 +99,8 @@ CREATE TABLE `employee_leave` (
 --
 
 INSERT INTO `employee_leave` (`leave_id`, `employee_no`, `date_applied`, `leave_type`, `start_date`, `end_date`, `reason`, `leave_form`, `status`, `approved_by`, `remarks`, `createdAt`, `updatedAt`) VALUES
-(3, '103', '2025-03-28', 'Bereavement', '2025-03-29', '2025-04-05', 'fasfafasfasfafaf', 'https://drive.google.com/uc?export=view&id=1ddszdlEe7RTgaVQCod1E6bvK3Bg7i5C0', 'Pending for Approval', NULL, NULL, '2025-03-28 08:28:32', '2025-04-02 01:32:42');
+(3, '103', '2025-03-28', 'Bereavement', '2025-03-29', '2025-04-05', 'fasfafasfasfafaf', 'https://drive.google.com/uc?export=view&id=1ddszdlEe7RTgaVQCod1E6bvK3Bg7i5C0', 'Pending for Approval', NULL, NULL, '2025-03-28 08:28:32', '2025-04-02 01:32:42'),
+(4, '2021-002', '2025-04-03', 'Vacation', '2025-04-03', '2025-04-11', 'sss', 'https://drive.google.com/uc?export=view&id=18BpWO13J15R9Tb8dSOyVI8qEOwiTj6on', '', NULL, NULL, '2025-04-03 06:28:00', '2025-04-03 06:28:00');
 
 -- --------------------------------------------------------
 
@@ -118,7 +123,8 @@ CREATE TABLE `employee_records` (
 --
 
 INSERT INTO `employee_records` (`recordID`, `employeeNo`, `type`, `dateIssued`, `details`, `attachment`, `status`) VALUES
-(1, '101', 'IR', '2025-03-24', 'HAHHAHAHA', 'https://drive.google.com/uc?export=view&id=1yOAxY04CWqJF6t9U1wRYdfnV8APznAmf', 'Pending for Approval');
+(1, '101', 'IR', '2025-03-24', 'HAHHAHAHA', 'https://drive.google.com/uc?export=view&id=1yOAxY04CWqJF6t9U1wRYdfnV8APznAmf', 'Pending for Approval'),
+(3, '2021-002', 'IR', '2025-04-03', 'adasdasd', 'https://drive.google.com/uc?export=view&id=1yGF8rP30UDzV6wJato9oZwMawsB1rJi5', 'Pending for Approval');
 
 --
 -- Indexes for dumped tables
@@ -155,19 +161,19 @@ ALTER TABLE `employee_records`
 -- AUTO_INCREMENT for table `employees`
 --
 ALTER TABLE `employees`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `employee_leave`
 --
 ALTER TABLE `employee_leave`
-  MODIFY `leave_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `leave_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `employee_records`
 --
 ALTER TABLE `employee_records`
-  MODIFY `recordID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `recordID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- Constraints for dumped tables

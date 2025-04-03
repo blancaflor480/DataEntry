@@ -52,6 +52,76 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
         );
     };
 
+    const renderProfileImageInfo = () => {
+      return (
+          <div className="mt-2">
+              {formData.profileImageUrl && !formData.profileImage && (
+                  <div className="d-flex align-items-center">
+                      <img 
+                          src={formData.profileImageUrl} 
+                          alt="Profile" 
+                          className="me-2 rounded-circle"
+                          style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                      />
+                      <a 
+                          href={formData.profileImageUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="me-2 text-primary"
+                      >
+                          View Current Profile Image
+                      </a>
+                      <Button 
+                          variant="outline-danger" 
+                          size="sm" 
+                          onClick={() => handleRemoveProfileImage()}
+                          className="ms-2"
+                      >
+                          <i className="fas fa-trash-alt"></i>
+                      </Button>
+                  </div>
+              )}
+              {formData.profileImage && (
+                  <div className="d-flex align-items-center mt-2">
+                      <span className="text-success">
+                          <i className="fas fa-file-upload me-1"></i> 
+                          New image selected: {formData.profileImage.name}
+                      </span>
+                      <Button 
+                          variant="outline-secondary" 
+                          size="sm" 
+                          onClick={() => handleRemoveNewProfileImage()}
+                          className="ms-2"
+                      >
+                          <i className="fas fa-times"></i>
+                      </Button>
+                  </div>
+              )}
+              {!formData.profileImageUrl && !formData.profileImage && (
+                  <div className="text-muted">
+                      <i className="fas fa-exclamation-circle me-1"></i> No profile image uploaded
+                  </div>
+              )}
+          </div>
+      );
+  };
+
+
+  const handleRemoveProfileImage = () => {
+    setFormData(prev => ({
+        ...prev,
+        profileImageUrl: "",
+        profileImage: null
+    }));
+};
+
+// Handle removing a newly selected profile image
+const handleRemoveNewProfileImage = () => {
+    setFormData(prev => ({
+        ...prev,
+        profileImage: null
+    }));
+};
     // Handle removing an existing contract URL
     const handleRemoveContract = (contractName) => {
         setFormData(prev => ({
@@ -81,6 +151,7 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
       footSize: "",
       weight: "",
       height: "",
+      profileImage: null,
       personalContact: "",
       personalEmail: "",
       corporateEmail: "",
@@ -127,6 +198,8 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
           footSize: employeeToEdit.footSize || "",
           weight: employeeToEdit.weight || "",
           height: employeeToEdit.height || "",
+          profileImage: null, // Reset profile image to allow re-upload
+          profileImageUrl: employeeToEdit.profileImageUrl || "",
           personalContact: employeeToEdit.personalContact || "",
           personalEmail: employeeToEdit.personalEmail || "",
           corporateEmail: employeeToEdit.corporateEmail || "",
@@ -341,7 +414,24 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
           } else if (formData.regularContractUrl) {
             fileUrls.regularContractUrl = formData.regularContractUrl;
           }
-        
+
+          if (formData.profileImage) {
+            const profileFormData = new FormData();
+            profileFormData.append("profileImage", formData.profileImage);
+            const profileResponse = await axios.post(
+                "http://localhost:5000/upload-profile", 
+                profileFormData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }
+            );
+            fileUrls.profileImageUrl = profileResponse.data.fileUrl;
+        } else if (formData.profileImageUrl) {
+            // Use existing URL if no new file is uploaded
+            fileUrls.profileImageUrl = formData.profileImageUrl;
+        }
         // Prepare data for submission to server
         const employeeData = {
           id: employeeToEdit.id, // Include the employee ID for update
@@ -611,7 +701,23 @@ const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) 
                             </Form.Control.Feedback>
                           </Form.Group>
                         </Col>
-                      </Row>
+                        
+                        <Form.Group controlId="profileImage">
+                        <Form.Label className="mt-3">Profile Image <span className="req">*</span></Form.Label>
+                        <Form.Control
+                            type="file"
+                            name="profileImage"
+                            isInvalid={!!errors.profileImage}
+                            onChange={handleFileChange}
+                            accept=".jpg,.jpeg,.png"
+                        />
+                        {renderProfileImageInfo()}
+                        <Form.Control.Feedback type="invalid">
+                            {errors.profileImage}
+                        </Form.Control.Feedback>
+                    </Form.Group>
+                   
+                    </Row>
                       </div>
             
                       <div className="border p-3 mb-3">

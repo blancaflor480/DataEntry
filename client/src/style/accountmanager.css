@@ -355,3 +355,20 @@ th:hover {
 .bi {
   font-size: 0.9rem;
 }
+
+.profile-cell {
+  width: 60px;
+  text-align: center;
+}
+
+.profile-image, .default-profile-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.default-profile-image i {
+  font-size: 40px;
+  color: #ccc;
+}

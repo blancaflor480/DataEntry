@@ -306,53 +306,43 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
     setShowEditModal(true);
   };
 
-  // Function to handle the archive button click
-  
   // Function to render profile image
-  const renderProfileImage = (profile) => {
-    if (!profile) {
+  const renderProfileImage = (employee) => {
+    // Check if employee object exists
+    if (!employee) {
       return (
         <div className="default-profile-image">
-          <span>N/A</span>
+          <i className="fas fa-user-circle"></i>
         </div>
       );
     }
-
-    // Check if the profile is a Google Drive file ID
-    if (!profile.includes("http")) {
-      const driveUrl = `https://drive.google.com/uc?export=view&id=${profile}`;
-      return (
-        <img
-          src={driveUrl}
-          alt="Profile"
-          className="profile-image"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = "/default-avatar.png"; // Fallback image
-          }}
-          onLoad={(e) => {
-            // Image loaded successfully
-            e.target.style.display = "block";
-          }}
-        />
-      );
-    }
-
-    // If it's already a URL
+  
+    // Check if profileImageUrl exists
+  
+  
+    const profileImageUrl = employee.profileImageUrl;
+  
+    // Check if it's a local file URL (starts with /uploads/)
+    // Check if profileImageUrl exists and is a local upload
+  if (employee.profileImageUrl && employee.profileImageUrl.startsWith('/uploads/profiles/')) {
     return (
       <img
-        src={profile}
+        src={`http://localhost:5000${employee.profileImageUrl}`}
         alt="Profile"
         className="profile-image"
         onError={(e) => {
           e.target.onerror = null;
-          e.target.src = "/default-avatar.png"; // Fallback image
-        }}
-        onLoad={(e) => {
-          // Image loaded successfully
-          e.target.style.display = "block";
+          e.target.src = "/default-avatar.png";
         }}
       />
+    );
+  }
+  
+    // If it's already a direct image URL
+    return (
+      <div className="default-profile-image">
+        <i className="fas fa-user-circle"></i>
+      </div>
     );
   };
 
@@ -476,7 +466,7 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
       </div>
     </th>
 
-    <th>Profile</th>
+    <th style={{ width: '60px' }}>Profile</th>
 
     <th 
       onClick={() => {
@@ -545,50 +535,49 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
     <th>Action</th>
   </tr>
 </thead>
-  <tbody>
-      {currentItems.length > 0 ? (
-        currentItems.map((employee, index) => (
-          <tr key={employee.id}>
-            <td>{employee.employeeNo}</td> {/* Use employeeNo instead of index */}
-            <td className="profile-cell">
-              {renderProfileImage(employee.profileUrl)} {/* Adjust according to your employee data */}
-            </td>
-            <td>{`${employee.firstName} ${employee.lastName}`}</td>
-            <td>{employee.position}</td> {/* Changed from role to position */}
-            <td>
-              <span className={`status-badge ${employee.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}>
-                {employee.status || 'N/A'}
-              </span>
-            </td>
-            <td>{employee.corporateEmail}</td> {/* Changed from email to corporateEmail */}
-            <td>
-            <button className="btn btn-warning btn-sm me-2" onClick={() => handleViewClick(employee)}>
-                <i className="fas fa-eye me-1"></i> View
+<tbody>
+  {currentItems.length > 0 ? (
+    currentItems.map((employee, index) => (
+      <tr key={employee.id}>
+        <td>{employee.employeeNo}</td>
+        <td className="profile-cell">
+        {renderProfileImage(employee)}
+      </td>
+      
+        <td>{`${employee.firstName} ${employee.lastName}`}</td>
+        <td>{employee.position}</td>
+        <td>
+          <span className={`status-badge ${employee.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}>
+            {employee.status || 'N/A'}
+          </span>
+        </td>
+        <td>{employee.corporateEmail}</td>
+        <td>
+          <button className="btn btn-warning btn-sm me-2" onClick={() => handleViewClick(employee)}>
+            <i className="fas fa-eye me-1"></i> View
+          </button>
+          <button className="btn btn-primary btn-sm me-2" onClick={() => handleEditClick(employee)}>
+            Edit
+          </button>
+          {userRole === "Super Admin" && (
+            <button 
+              className="btn btn-danger btn-sm" 
+              onClick={() => handleDeleteClick(employee)}
+            >
+              Delete
             </button>
-
-              <button className="btn btn-primary btn-sm me-2" onClick={() => handleEditClick(employee)}>
-                Edit
-              </button>
-            
-              {userRole === "Super Admin" && (
-                <button 
-                  className="btn btn-danger btn-sm" 
-                  onClick={() => handleDeleteClick(employee)}
-                >
-                  Delete
-                </button>
-              )}
-            </td>
-          </tr>
-        ))
-      ) : (
-        <tr>
-          <td colSpan="7" className="text-center">
-            No employees found
-          </td>
-        </tr>
-      )}
-    </tbody>
+          )}
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="7" className="text-center">
+        No employees found
+      </td>
+    </tr>
+  )}
+</tbody>
                 </table>
               )}
             </div>

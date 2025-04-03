@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const fs = require('fs');
 const admin = require("firebase-admin");
 const multer = require("multer");
 const { google } = require("googleapis");
@@ -7,6 +8,7 @@ const path = require("path");
 require("dotenv").config();
 const mysql = require('mysql2/promise');
 const leaveEmployee = require('./leaveEmployee');
+
 
 const app = express();
 app.use(cors());
@@ -319,52 +321,88 @@ async function deleteEmployeeFromSheet(employeeNo) {
     }
   }
 
-  // Add this endpoint for profile image uploads
+// Create uploads directory if it doesn't exist
+const createUploadsDirectory = () => {
+  const uploadsDir = path.join(__dirname, 'uploads', 'profiles');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  return uploadsDir;
+};
+
+// Call this after all your imports and middleware, but before your routes
+const uploadsDir = createUploadsDirectory();
+
+// Then add or modify your endpoint
 app.post("/upload-profile", upload.single("profileImage"), async (req, res) => {
   try {
-      if (!req.file) {
-          return res.status(400).json({ error: "No file uploaded" });
-      }
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
-      const fileMetadata = {
-          name: req.file.originalname,
-          parents: ["1GXIhhayccVZS9lWRHWia7X8cUXHUMIcp"], // Your profile images folder ID
-      };
+    // 1. First save to Google Drive
+    const fileMetadata = {
+      name: req.file.originalname,
+      parents: ["1GXIhhayccVZS9lWRHWia7X8cUXHUMIcp"], // Your profile images folder ID
+    };
 
-      const media = {
-          mimeType: req.file.mimetype,
-          body: require("fs").createReadStream(req.file.path),
-      };
+    const media = {
+      mimeType: req.file.mimetype,
+      body: fs.createReadStream(req.file.path),
+    };
 
-      const response = await drive.files.create({
-          resource: fileMetadata,
-          media: media,
-          fields: "id",
-      });
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: "id",
+    });
 
-      const fileId = response.data.id;
+    const fileId = response.data.id;
 
-      // Make the file publicly accessible
-      await drive.permissions.create({
-          fileId: fileId,
-          requestBody: {
-              role: "reader",
-              type: "anyone",
-          },
-      });
+    // Make the file publicly accessible
+    await drive.permissions.create({
+      fileId: fileId,
+      requestBody: {
+        role: "reader",
+        type: "anyone",
+      },
+    });
 
-      const fileUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+    const driveFileUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
 
-      // Delete the temporary file
-      require("fs").unlinkSync(req.file.path);
+    // 2. Now save the file to local storage
+    const uniqueFilename = `${Date.now()}-${req.file.originalname.replace(/\s+/g, '-')}`;
+    const localDestination = path.join(uploadsDir, uniqueFilename);
+    
+    // Create a copy in the profiles folder
+    fs.copyFileSync(req.file.path, localDestination);
+    
+    // Local URL path for the file (relative to server root)
+    const localFileUrl = `/uploads/profiles/${uniqueFilename}`;
+    
+    // Delete the temporary file from the uploads folder created by multer
+    fs.unlinkSync(req.file.path);
 
-      res.status(200).json({ fileUrl });
+    res.status(200).json({ 
+      fileUrl: driveFileUrl,
+      localFileUrl: localFileUrl 
+    });
   } catch (error) {
-      console.error("Error uploading profile image:", error);
-      res.status(500).json({ error: "Failed to upload profile image" });
+    console.error("Error uploading profile image:", error);
+    
+    // Make sure to delete the temporary file if there's an error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    
+    res.status(500).json({ error: "Failed to upload profile image" });
   }
 });
-// Endpoint to handle file upload to Google Drive
+
+// Add this to serve the static files if not already present
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+  // Endpoint to handle file upload to Google Drive
 app.post("/upload", upload.single("profile"), async (req, res) => {
     try {
         if (!req.file) {
@@ -763,7 +801,7 @@ app.put("/employees/:id", validateEmployeeData, async (req, res) => {
 // Add these constants at the top with other configurations
 const RECORDS_SHEET_NAME = 'Employee_Records';
 const DRIVE_RECORDS_FOLDER_ID = '1RLnXZNZhnJzcBdauSdmruqqJweFD-lXy'; // Your shared folder ID
-const fs = require('fs');
+
 const e = require("express");
 
 // Add this function to create employee folders
