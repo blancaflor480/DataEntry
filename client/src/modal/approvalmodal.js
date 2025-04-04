@@ -1,0 +1,194 @@
+import React, { useState, useEffect } from "react";
+import { Modal, Button, Table, Alert, Badge } from "react-bootstrap";
+import axios from "axios";
+
+const ApprovalModal = ({ 
+  show, 
+  onHide, 
+  userRole,
+  refreshEmployees 
+}) => {
+  const [pendingEdits, setPendingEdits] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Fetch pending approvals when modal opens
+  useEffect(() => {
+    if (show) {
+      fetchPendingApprovals();
+    }
+  }, [show]);
+
+  const fetchPendingApprovals = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get("http://localhost:5000/approvals/pending");
+      setPendingEdits(response.data);
+    } catch (err) {
+      setError("Failed to fetch pending approvals");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (editId) => {
+    try {
+      setLoading(true);
+      setError("");
+      setSuccess("");
+      
+      await axios.put(`http://localhost:5000/approvals/${editId}/approve`);
+      
+      setSuccess("Edit approved successfully!");
+      fetchPendingApprovals();
+      refreshEmployees(); // Refresh employee list to show changes
+      
+      setTimeout(() => setSuccess(""), 2000);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to approve edit");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async (editId) => {
+    try {
+      setLoading(true);
+      setError("");
+      setSuccess("");
+      
+      await axios.put(`http://localhost:5000/approvals/${editId}/reject`);
+      
+      setSuccess("Edit rejected successfully!");
+      fetchPendingApprovals();
+      
+      setTimeout(() => setSuccess(""), 2000);
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to reject edit");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatFieldName = (field) => {
+    // Convert camelCase to readable format
+    return field
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase());
+  };
+
+  return (
+    <Modal show={show} onHide={onHide} size="xl" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>
+          Pending Edit Approvals
+          <Badge bg="warning" className="ms-2">
+            {pendingEdits.length}
+          </Badge>
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {error && <Alert variant="danger" onClose={() => setError("")} dismissible>{error}</Alert>}
+        {success && <Alert variant="success" onClose={() => setSuccess("")} dismissible>{success}</Alert>}
+        
+        {loading && !pendingEdits.length ? (
+          <div className="text-center my-4">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        ) : pendingEdits.length === 0 ? (
+          <Alert variant="info">No pending edits for approval</Alert>
+        ) : (
+          <div className="table-responsive">
+            <Table striped bordered hover>
+              <thead className="table-dark">
+                <tr>
+                  <th>Employee</th>
+                  <th>Field</th>
+                  <th>Current Value</th>
+                  <th>Requested Value</th>
+                  <th>Requested By</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingEdits.map((edit) => (
+                  <tr key={edit.id}>
+                    <td>
+                      {edit.employeeName} 
+                      <br />
+                      <small className="text-muted">#{edit.employeeNo}</small>
+                    </td>
+                    <td>{formatFieldName(edit.field)}</td>
+                    <td className="text-danger">
+                      {edit.oldValue || <em>Empty</em>}
+                    </td>
+                    <td className="text-success">
+                      {edit.newValue || <em>Empty</em>}
+                    </td>
+                    <td>
+                    {edit.requestedByEmail}
+                    <br />
+                    <small className="text-muted">
+                        {new Date(edit.requestedAt).toLocaleString()}
+                    </small>
+                    </td>
+                    <td>
+                      {new Date(edit.requestedAt).toLocaleDateString()}
+                    </td>
+                    <td>
+                      {userRole === "Super Admin" && (
+                        <div className="d-flex gap-2">
+                          <Button 
+                            variant="outline-success" 
+                            size="sm"
+                            onClick={() => handleApprove(edit.id)}
+                            disabled={loading}
+                          >
+                            <i className="fas fa-check"></i> Approve
+                          </Button>
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => handleReject(edit.id)}
+                            disabled={loading}
+                          >
+                            <i className="fas fa-times"></i> Reject
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>
+          Close
+        </Button>
+        {userRole === "Super Admin" && pendingEdits.length > 0 && (
+          <Button 
+            variant="primary"
+            onClick={() => {
+              if (window.confirm("Approve all pending changes?")) {
+                pendingEdits.forEach(edit => handleApprove(edit.id));
+              }
+            }}
+            disabled={loading}
+          >
+            Approve All
+          </Button>
+        )}
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+export default ApprovalModal;

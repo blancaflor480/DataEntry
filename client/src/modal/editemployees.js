@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Row, Col, Alert } from "react-bootstrap";
 import "../style/accountmanager.css";
 import axios from "axios";
+import { getAuth } from "firebase/auth";
+
 
 const EditEmployeeModal = ({ show, onHide, employeeToEdit, onEmployeeUpdated }) => {
     const renderContractFileInfo = (contractUrl, contractFile, name) => {
@@ -356,6 +358,7 @@ const handleRemoveNewProfileImage = () => {
       const isValid = validateForm();
       console.log("Is Form Valid:", isValid);
       // Reset submission states
+      setIsSubmitting(true);
       setSubmitError("");
       setSubmitSuccess("");
       
@@ -368,7 +371,13 @@ const handleRemoveNewProfileImage = () => {
       setIsSubmitting(true);
       
       try {
-        // Process file uploads first
+
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) throw new Error("Not authenticated");
+        const idToken = await user.getIdToken();
+
+            // Process file uploads first
         const fileUrls = {};
         if (Object.keys(errors).length > 0) {
           console.error("Form has validation errors:", errors);
@@ -388,7 +397,15 @@ const handleRemoveNewProfileImage = () => {
         if (formData.joiningContract) {
             const joiningContractFormData = new FormData();
             joiningContractFormData.append("attachment", formData.joiningContract);
-            const joiningResponse = await axios.post("http://localhost:5000/upload-attachment", joiningContractFormData);
+            const joiningResponse = await axios.post(
+              "http://localhost:5000/upload-attachment", 
+              joiningContractFormData,
+              {
+                headers: {
+                  'Authorization': `Bearer ${idToken}`
+                }
+              }
+            );
             fileUrls.joiningContractUrl = joiningResponse.data.fileUrl;
           } else if (formData.joiningContractUrl) {
             // Use existing URL if no new file is uploaded
@@ -399,7 +416,15 @@ const handleRemoveNewProfileImage = () => {
         if (formData.probationContract) {
             const probationContractFormData = new FormData();
             probationContractFormData.append("attachment", formData.probationContract);
-            const probationResponse = await axios.post("http://localhost:5000/upload-attachment", probationContractFormData);
+            const probationResponse = await axios.post(
+              "http://localhost:5000/upload-attachment", 
+              probationContractFormData,
+              {
+                headers: {
+                  'Authorization': `Bearer ${idToken}`
+                }
+              }
+            );
             fileUrls.probationContractUrl = probationResponse.data.fileUrl;
           } else if (formData.probationContractUrl) {
             fileUrls.probationContractUrl = formData.probationContractUrl;
@@ -409,7 +434,15 @@ const handleRemoveNewProfileImage = () => {
         if (formData.regularContract) {
             const regularContractFormData = new FormData();
             regularContractFormData.append("attachment", formData.regularContract);
-            const regularResponse = await axios.post("http://localhost:5000/upload-attachment", regularContractFormData);
+            const regularResponse = await axios.post(
+              "http://localhost:5000/upload-attachment", 
+              regularContractFormData,
+              {
+                headers: {
+                  'Authorization': `Bearer ${idToken}`
+                }
+              }
+            );
             fileUrls.regularContractUrl = regularResponse.data.fileUrl;
           } else if (formData.regularContractUrl) {
             fileUrls.regularContractUrl = formData.regularContractUrl;
@@ -419,13 +452,14 @@ const handleRemoveNewProfileImage = () => {
             const profileFormData = new FormData();
             profileFormData.append("profileImage", formData.profileImage);
             const profileResponse = await axios.post(
-                "http://localhost:5000/upload-profile", 
-                profileFormData,
-                {
-                    headers: {
-                        'Content-Type': 'multipart/form-data'
-                    }
+              "http://localhost:5000/upload-profile", 
+              profileFormData,
+              {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                  'Authorization': `Bearer ${idToken}`
                 }
+              }
             );
             fileUrls.profileImageUrl = profileResponse.data.fileUrl;
         } else if (formData.profileImageUrl) {
@@ -464,10 +498,27 @@ const handleRemoveNewProfileImage = () => {
         };
         
         // Update employee data instead of creating new
-        await axios.put(`http://localhost:5000/employees/${employeeToEdit.id}`, employeeData);
+        //await axios.put(`http://localhost:5000/employees/${employeeToEdit.id}`, employeeData);
         
-        
-        setSubmitSuccess("Employee updated successfully!");
+        const response = await axios.put(
+          `http://localhost:5000/employees/${employeeToEdit.id}`,
+          employeeData,
+          {
+            headers: {
+              'Authorization': `Bearer ${idToken}`
+            }
+          }
+        );
+
+        if (response.data.requiresApproval) {
+          setSubmitSuccess(`Changes submitted for approval (${response.data.changesSubmitted} fields)`);
+        } else {
+          setSubmitSuccess("Employee updated successfully!");
+          if (onEmployeeUpdated) onEmployeeUpdated();
+        }
+
+        // Reset form data and errors
+       // setSubmitSuccess("Employee updated successfully!");
         
         // Notify parent component
         if (onEmployeeUpdated) {

@@ -46,6 +46,33 @@ const sheets = google.sheets({
   }),
 });
 
+// Add this middleware before your routes
+app.use(async (req, res, next) => {
+  try {
+    // Get the Firebase token from headers
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next(); // Continue without user info
+    }
+
+    const idToken = authHeader.split('Bearer ')[1];
+    
+    // Verify Firebase token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      name: decodedToken.name || decodedToken.email,
+      role: decodedToken.role || 'user' // You can set custom claims in Firebase
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Error verifying Firebase token:', error);
+    next(); // Continue without user info
+  }
+});
+
 const SPREADSHEET_ID = '1niZXidIiHwRI4itEJgswcXCvaJtiBfHDSa1CbOqZayw';
 const SHEET_NAME = 'Employees'; // Update this to match your sheet name
 
@@ -679,74 +706,184 @@ app.get("/employees", async (req, res) => {
   });
   
   // Modify the update endpoint to also update the Google Sheet
-app.put("/employees/:id", validateEmployeeData, async (req, res) => {
-  try {
-      const employeeId = req.params.id;
-      const connection = await pool.getConnection();
-      
-      try {
-          // Check if employee exists
-          const [existingEmployee] = await connection.query(
-              'SELECT id FROM employees WHERE id = ?',
-              [employeeId]
-          );
-
-          if (existingEmployee.length === 0) {
-              await connection.release();
-              return res.status(404).json({ error: "Employee not found" });
+  app.put("/employees/:id", validateEmployeeData, async (req, res) => {
+    try {
+        const employeeId = req.params.id;
+        const connection = await pool.getConnection();
+        
+        try {
+          const employeeId = req.params.id;
+          const userId = req.user?.uid; // Assuming you have user authentication
+          const userRole = req.user.role;
+          const userEmail = req.user?.email; // Get email from req.user
+          
+          if (!userId || !userEmail) {
+            await connection.release();
+            return res.status(401).json({ error: "Authentication required" });
           }
+            // Check if employee exists
+            const [existingEmployee] = await connection.query(
+                'SELECT id FROM employees WHERE id = ?',
+                [employeeId]
+            );
+  
+            if (existingEmployee.length === 0) {
+                await connection.release();
+                return res.status(404).json({ error: "Employee not found" });
+            }
+            
+            const employee = existingEmployee[0];
+            const changes = [];
+  
+             // Compare each field for changes
+            Object.keys(req.body).forEach(key => {
+              if (req.body[key] !== employee[key]) {
+                changes.push({
+                  field: key,
+                  oldValue: employee[key],
+                  newValue: req.body[key]
+                });
+              }
+            });
+  
+            const {
+                firstName, middleName, lastName, employeeNo, status, position,
+                dateHire, endDate, footSize, weight, height, personalContact,
+                personalEmail, corporateEmail, birthday, address, startingRate,
+                currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
+                pagIbigNumber, philhealthNumber, tinNumber,
+                joiningContractUrl, probationContractUrl, regularContractUrl
+            } = req.body;
+  
+            // Update employee data in MySQL
+            await connection.query(
+                `UPDATE employees SET 
+                    firstName = ?, middleName = ?, lastName = ?, employeeNo = ?, status = ?, position = ?,
+                    dateHire = ?, endDate = ?, footSize = ?, weight = ?, height = ?, personalContact = ?,
+                    personalEmail = ?, corporateEmail = ?, birthday = ?, address = ?, startingRate = ?,
+                    currentMonthlyRate = ?, currentDailyRate = ?, hoursRate = ?, bdoAccount = ?, sssNumber = ?,
+                    pagIbigNumber = ?, philhealthNumber = ?, tinNumber = ?,
+                    joiningContractUrl = ?, probationContractUrl = ?, regularContractUrl = ?
+                WHERE id = ?`,
+                [
+                    firstName, middleName || null, lastName, employeeNo, status, position,
+                    dateHire, endDate || null, footSize || null, weight || null, height || null, personalContact,
+                    personalEmail, corporateEmail, birthday, address, startingRate,
+                    currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount || null, sssNumber || null,
+                    pagIbigNumber || null, philhealthNumber || null, tinNumber || null,
+                    joiningContractUrl || null, probationContractUrl || null, regularContractUrl || null,
+                    employeeId
+                ]
+            );
+  
+             // If no changes, return immediately
+            if (changes.length === 0) {
+              await connection.release();
+              return res.status(200).json({ message: "No changes detected" });
+            }
+  
+             // If user is Super Admin, apply changes directly
+          if (userRole === "Super Admin") {
+            await connection.beginTransaction();
+            
+            try {
+              // Build the update query dynamically
+              const setClause = changes.map(change => `${change.field} = ?`).join(', ');
+              const values = changes.map(change => change.newValue);
+              values.push(employeeId);
+              
+              await connection.query(
+                `UPDATE employees SET ${setClause} WHERE id = ?`,
+                values
+              );
+  
+              // Update Google Sheets
+              const [updatedEmployee] = await connection.query(
+                'SELECT * FROM employees WHERE id = ?',
+                [employeeId]
+              );
+              await updateEmployeeInSheet(updatedEmployee[0]);
+  
+              await connection.commit();
+              await connection.release();
+              return res.status(200).json({ message: "Employee updated successfully" });
+            } catch (error) {
+              await connection.rollback();
+              await connection.release();
+              throw error;
+            }
+          } 
+          // For other users, create approval requests
+          else {
+            await connection.beginTransaction();
+            
+            try {
+              const [employee] = await connection.query(
+                'SELECT firstName, lastName, employeeNo FROM employees WHERE id = ?',
+                [employeeId]
+              );
 
-          const {
-              firstName, middleName, lastName, employeeNo, status, position,
-              dateHire, endDate, footSize, weight, height, personalContact,
-              personalEmail, corporateEmail, birthday, address, startingRate,
-              currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
-              pagIbigNumber, philhealthNumber, tinNumber,
-              joiningContractUrl, probationContractUrl, regularContractUrl
-          } = req.body;
-
-          // Update employee data in MySQL
-          await connection.query(
-              `UPDATE employees SET 
-                  firstName = ?, middleName = ?, lastName = ?, employeeNo = ?, status = ?, position = ?,
-                  dateHire = ?, endDate = ?, footSize = ?, weight = ?, height = ?, personalContact = ?,
-                  personalEmail = ?, corporateEmail = ?, birthday = ?, address = ?, startingRate = ?,
-                  currentMonthlyRate = ?, currentDailyRate = ?, hoursRate = ?, bdoAccount = ?, sssNumber = ?,
-                  pagIbigNumber = ?, philhealthNumber = ?, tinNumber = ?,
-                  joiningContractUrl = ?, probationContractUrl = ?, regularContractUrl = ?
-              WHERE id = ?`,
-              [
-                  firstName, middleName || null, lastName, employeeNo, status, position,
-                  dateHire, endDate || null, footSize || null, weight || null, height || null, personalContact,
-                  personalEmail, corporateEmail, birthday, address, startingRate,
-                  currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount || null, sssNumber || null,
-                  pagIbigNumber || null, philhealthNumber || null, tinNumber || null,
-                  joiningContractUrl || null, probationContractUrl || null, regularContractUrl || null,
-                  employeeId
-              ]
-          );
-
-          // Fetch the updated employee data
-          const [updatedEmployee] = await connection.query(
-              'SELECT * FROM employees WHERE id = ?',
-              [employeeId]
-          );
-
-          // Update row in Google Sheets
-          // Note: This requires finding the correct row in the sheet based on employeeNo or ID
-          await updateEmployeeInSheet(updatedEmployee[0]);
-
-          await connection.release();
-          res.status(200).json({ message: "Employee updated successfully" });
-      } catch (error) {
+              if (employee.length === 0) {
+                await connection.release();
+                return res.status(404).json({ error: "Employee not found" });
+              }
+          
+              const employeeData = employee[0];
+              const employeeName = `${employeeData.firstName} ${employeeData.lastName}`;
+              const employeeNo = employeeData.employeeNo;
+          
+              // Create approval records for each change
+              for (const change of changes) {
+                await connection.query(
+                  `INSERT INTO edit_approvals (
+                    employeeId, employeeName, employeeNo, field, 
+                    oldValue, newValue, requestedBy, requestedByEmail
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [
+                    employeeId,
+                    employeeName,
+                    employeeNo, // Now using the actual employeeNo from the employees table
+                    change.field,
+                    change.oldValue,
+                    change.newValue,
+                    userId,
+                    userEmail // Changed from req.user.username to userEmail
+                  ]
+                );
+              }
+                
+              await connection.commit();
+              await connection.release();
+              return res.status(200).json({ 
+                message: "Changes submitted for approval",
+                requiresApproval: true,
+                changesSubmitted: changes.length
+              });
+            } catch (error) {
+              await connection.rollback();
+              await connection.release();
+              throw error;
+            }
+          }
+        } catch (error) {
           await connection.release();
           throw error;
-      }
-  } catch (error) {
-      console.error("Error updating employee:", error);
-      res.status(500).json({ error: "Failed to update employee" });
-  }
-});
+        } finally {
+          // Ensure connection is released if not already done
+          if (connection) {
+            try {
+              // Check if connection is still active before releasing
+              await connection.release();
+            } catch (releaseError) {
+              console.error("Error releasing connection:", releaseError);
+            }
+          }
+        }
+    } catch (error) {
+        console.error("Error updating employee:", error);
+        res.status(500).json({ error: "Failed to update employee" });
+    }
+  });
   
   // Endpoint to delete an employee
   app.delete("/employees/:id", async (req, res) => {
@@ -796,6 +933,108 @@ app.put("/employees/:id", validateEmployeeData, async (req, res) => {
       res.status(500).json({ error: "Failed to delete employee" });
     }
   });
+
+// Get pending approvals
+app.get("/approvals/pending", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ea.*, e.firstName, e.lastName 
+       FROM edit_approvals ea
+       JOIN employees e ON ea.employeeId = e.id
+       WHERE ea.status = 'pending'
+       ORDER BY ea.requestedAt DESC`
+    );
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error("Error fetching pending approvals:", error);
+    res.status(500).json({ error: "Failed to fetch pending approvals" });
+  }
+});
+
+// Approve an edit
+app.put("/approvals/:id/approve", async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const userId = req.user?.uid;
+    const userEmail = req.user?.email;
+    
+    if (!userId || !userEmail) {
+      await connection.release();
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    // 1. Get the approval request
+    const [approvals] = await connection.query(
+      `SELECT * FROM edit_approvals WHERE id = ? AND status = 'pending'`,
+      [req.params.id]
+    );
+
+    if (approvals.length === 0) {
+      await connection.release();
+      return res.status(404).json({ error: "Approval request not found" });
+    }
+
+    const approval = approvals[0];
+
+    // 2. Update the employee record
+    await connection.query(
+      `UPDATE employees SET ${approval.field} = ? WHERE id = ?`,
+      [approval.newValue, approval.employeeId]
+    );
+
+    // 3. Update the approval status
+    await connection.query(
+      `UPDATE edit_approvals 
+       SET status = 'approved', approvedBy = ?,  approvedByEmail = ?, approvedAt = NOW() 
+       WHERE id = ?`,
+      [req.user.id, req.params.id]
+    );
+
+    // 4. Update Google Sheets if needed
+    try {
+      const [employee] = await connection.query(
+        'SELECT * FROM employees WHERE id = ?',
+        [approval.employeeId]
+      );
+      await updateEmployeeInSheet(employee[0]);
+    } catch (sheetError) {
+      console.error('Failed to update Google Sheets:', sheetError);
+      // Continue even if Sheets update fails
+    }
+
+    await connection.commit();
+    await connection.release();
+    res.status(200).json({ message: "Edit approved successfully" });
+  } catch (error) {
+    await connection.rollback();
+    await connection.release();
+    console.error("Error approving edit:", error);
+    res.status(500).json({ error: "Failed to approve edit" });
+  }
+});
+
+// Reject an edit
+app.put("/approvals/:id/reject", async (req, res) => {
+  try {
+    const [result] = await pool.query(
+      `UPDATE edit_approvals 
+       SET status = 'rejected', rejectedBy = ?, rejectedAt = NOW() 
+       WHERE id = ? AND status = 'pending'`,
+      [req.user.id, req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Approval request not found" });
+    }
+
+    res.status(200).json({ message: "Edit rejected successfully" });
+  } catch (error) {
+    console.error("Error rejecting edit:", error);
+    res.status(500).json({ error: "Failed to reject edit" });
+  }
+});
 
 //Record
 // Add these constants at the top with other configurations

@@ -8,6 +8,7 @@ import AddEmployeeModal from "../modal/addemployee";
 import EditEmployeeModal from "../modal/editemployees";
 import ViewEmployeeModal from "../modal/viewemployee";
 import DeleteEmployeeModal from "../modal/deleteemployee"; 
+import ApprovalModal from "../modal/approvalmodal";
 import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs, updateDoc, serverTimestamp} from "firebase/firestore";
 import axios from 'axios';
@@ -35,6 +36,8 @@ const DataEntry = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertVariant, setAlertVariant] = useState("success");
   const [userId, setUserId] = useState(""); // Store user ID for logout tracking
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [pendingEdits, setPendingEdits] = useState([]);
   const navigate = useNavigate();
       
   // New state for sorting
@@ -143,6 +146,32 @@ const DataEntry = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+
+  useEffect(() => {
+    const fetchPendingEdits = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/approvals/pending');
+        setPendingEdits(response.data || []);
+      } catch (error) {
+        console.error("Error fetching pending edits:", error);
+        setPendingEdits([]);
+      }
+    };
+  
+    if (showApprovalModal) {
+      fetchPendingEdits();
+    }
+  }, [showApprovalModal]);
+
+  const handleApproveSuccess = (editId) => {
+    setPendingEdits(prev => prev.filter(edit => edit.id !== editId));
+    // Refresh employee list to show the approved changes
+    setEmployees([]);
+  };
+  
+  const handleRejectSuccess = (editId) => {
+    setPendingEdits(prev => prev.filter(edit => edit.id !== editId));
+  };
   
  // Add this useEffect to fetch employees from MySQL
  useEffect(() => {
@@ -436,6 +465,19 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
               >
                 Add Account
               </button>
+              
+              <button
+                className="btn btn-danger search-button"
+                onClick={() => setShowApprovalModal(true)}
+              >
+                Approval
+                {pendingEdits.length > 0 && (
+                  <span className="badge rounded-pill bg-danger">
+                    {pendingEdits.length}
+                  </span>
+                )}
+              </button>
+            
             </div>
 
             {/* Table */}
@@ -613,6 +655,17 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
         </div>
       </div>
 
+
+      {/* Render the ApprovalModal */}
+      <ApprovalModal
+        show={showApprovalModal}
+        onHide={() => setShowApprovalModal(false)}
+        pendingEdits={pendingEdits}
+        onApproveSuccess={handleApproveSuccess}
+        onRejectSuccess={handleRejectSuccess}
+        userRole={userRole}
+        />
+
       {/* Render the AddAdminModal */}
       <AddEmployeeModal
         show={showAddModal}
@@ -635,6 +688,7 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
           // Refresh employee list after update
           setEmployees([]);
         }}
+        userRole={userRole} // Pass user role to the modal
       />
 
       {/* Render the ConfirmationModal */}
