@@ -1100,6 +1100,7 @@ const handleRemoveNewProfileImage = () => {
                       </Row>
                     </div>
 
+
             <div className="mt-4">
               <Button variant="primary" type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Updating..." : "Update Employee"}
