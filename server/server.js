@@ -708,7 +708,6 @@ app.get("/employees", async (req, res) => {
   // Modify the update endpoint to also update the Google Sheet
   app.put("/employees/:id", validateEmployeeData, async (req, res) => {
     try {
-        const employeeId = req.params.id;
         const connection = await pool.getConnection();
         
         try {
@@ -723,29 +722,54 @@ app.get("/employees", async (req, res) => {
           }
             // Check if employee exists
             const [existingEmployee] = await connection.query(
-                'SELECT id FROM employees WHERE id = ?',
-                [employeeId]
-            );
+              'SELECT * FROM employees WHERE id = ?', // Changed to get all fields
+              [employeeId]
+          );
   
-            if (existingEmployee.length === 0) {
-                await connection.release();
-                return res.status(404).json({ error: "Employee not found" });
-            }
+          if (existingEmployee.length === 0) {
+            await connection.release();
+            return res.status(404).json({ error: "Employee not found" });
+        }
             
-            const employee = existingEmployee[0];
-            const changes = [];
-  
-             // Compare each field for changes
-            Object.keys(req.body).forEach(key => {
-              if (req.body[key] !== employee[key]) {
-                changes.push({
-                  field: key,
-                  oldValue: employee[key],
-                  newValue: req.body[key]
-                });
+        const currentEmployee = existingEmployee[0];
+        const changes = [];   
+        // Compare each field for changes
+             Object.keys(req.body).forEach(key => {
+              const oldValue = currentEmployee[key];
+              const newValue = req.body[key];
+            
+              // Skip if both values are null/undefined
+              if (!oldValue && !newValue) return;
+            
+              // Handle date fields specifically
+              const dateFields = ['dateHire', 'endDate', 'birthday'];
+              if (dateFields.includes(key)) {
+                const oldDate = oldValue ? new Date(oldValue).toISOString().split('T')[0] : '';
+                const newDate = newValue ? new Date(newValue).toISOString().split('T')[0] : '';
+                
+                if (oldDate !== newDate) {
+                  changes.push({
+                    field: key,
+                    oldValue: oldDate,
+                    newValue: newDate
+                  });
+                }
+              } 
+              // Handle all other fields
+              else {
+                const oldStringValue = oldValue?.toString() || '';
+                const newStringValue = newValue?.toString() || '';
+                
+                if (oldStringValue !== newStringValue) {
+                  changes.push({
+                    field: key,
+                    oldValue: oldStringValue,
+                    newValue: newStringValue
+                  });
+                }
               }
             });
-  
+
             const {
                 firstName, middleName, lastName, employeeNo, status, position,
                 dateHire, endDate, footSize, weight, height, personalContact,
@@ -788,15 +812,12 @@ app.get("/employees", async (req, res) => {
             
             try {
               // Build the update query dynamically
-              const setClause = changes.map(change => `${change.field} = ?`).join(', ');
-              const values = changes.map(change => change.newValue);
-              values.push(employeeId);
-              
-              await connection.query(
-                `UPDATE employees SET ${setClause} WHERE id = ?`,
-                values
-              );
-  
+              const updateQuery = `UPDATE employees SET ${
+                changes.map(change => `${change.field} = ?`).join(', ')
+              } WHERE id = ?`;
+              const updateValues = [...changes.map(change => change.newValue), employeeId];              
+              await connection.query(updateQuery, updateValues);
+      
               // Update Google Sheets
               const [updatedEmployee] = await connection.query(
                 'SELECT * FROM employees WHERE id = ?',
@@ -806,7 +827,10 @@ app.get("/employees", async (req, res) => {
   
               await connection.commit();
               await connection.release();
-              return res.status(200).json({ message: "Employee updated successfully" });
+              return res.status(200).json({ 
+                message: "Employee updated successfully",
+                changesApplied: changes.length
+              });
             } catch (error) {
               await connection.rollback();
               await connection.release();
@@ -818,6 +842,9 @@ app.get("/employees", async (req, res) => {
             await connection.beginTransaction();
             
             try {
+              const employeeName = `${currentEmployee.firstName} ${currentEmployee.lastName}`;
+              const employeeNo = currentEmployee.employeeNo; // This will now have the value
+
               const [employee] = await connection.query(
                 'SELECT firstName, lastName, employeeNo FROM employees WHERE id = ?',
                 [employeeId]
@@ -828,10 +855,7 @@ app.get("/employees", async (req, res) => {
                 return res.status(404).json({ error: "Employee not found" });
               }
           
-              const employeeData = employee[0];
-              const employeeName = `${employeeData.firstName} ${employeeData.lastName}`;
-              const employeeNo = employeeData.employeeNo;
-          
+    
               // Create approval records for each change
               for (const change of changes) {
                 await connection.query(
@@ -857,7 +881,8 @@ app.get("/employees", async (req, res) => {
               return res.status(200).json({ 
                 message: "Changes submitted for approval",
                 requiresApproval: true,
-                changesSubmitted: changes.length
+                changesSubmitted: changes.length,
+                changedFields: changes.map(change => change.field).join(', ')
               });
             } catch (error) {
               await connection.rollback();

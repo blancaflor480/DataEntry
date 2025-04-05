@@ -365,10 +365,11 @@ const handleRemoveNewProfileImage = () => {
       // Validate form
       if (!validateForm()) {
         console.log("Validation Errors:", errors);
+        setSubmitError(false);
         return;
       }
       
-      setIsSubmitting(true);
+      //setIsSubmitting(true);
       
       try {
 
@@ -519,11 +520,6 @@ const handleRemoveNewProfileImage = () => {
 
         // Reset form data and errors
        // setSubmitSuccess("Employee updated successfully!");
-        
-        // Notify parent component
-        if (onEmployeeUpdated) {
-          onEmployeeUpdated();
-        }
         
         // Close modal after short delay
         setTimeout(() => {
