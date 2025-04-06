@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Table, Alert, Badge } from "react-bootstrap";
 import axios from "axios";
+import { getAuth } from "firebase/auth";
 
 const ApprovalModal = ({ 
   show, 
@@ -35,19 +36,37 @@ const ApprovalModal = ({
 
   const handleApprove = async (editId) => {
     try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      
+      if (!user) {
+        setError("User not authenticated. Please log in again.");
+        return;
+      }
+
       setLoading(true);
       setError("");
       setSuccess("");
       
-      await axios.put(`http://localhost:5000/approvals/${editId}/approve`);
+      const idToken = await user.getIdToken(true); // Force refresh the token
+      
+      const response = await axios.put(
+        `http://localhost:5000/approvals/${editId}/approve`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      ); 
       
       setSuccess("Edit approved successfully!");
       fetchPendingApprovals();
-      refreshEmployees(); // Refresh employee list to show changes
-      
-      setTimeout(() => setSuccess(""), 2000);
+      refreshEmployees();
     } catch (err) {
       setError(err.response?.data?.error || "Failed to approve edit");
+      console.error('Error approving change:', err);
     } finally {
       setLoading(false);
     }
@@ -55,23 +74,40 @@ const ApprovalModal = ({
 
   const handleReject = async (editId) => {
     try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      
+      if (!user) {
+        setError("User not authenticated. Please log in again.");
+        return;
+      }
+  
       setLoading(true);
       setError("");
       setSuccess("");
       
-      await axios.put(`http://localhost:5000/approvals/${editId}/reject`);
+      const idToken = await user.getIdToken(true); // Force refresh the token
+      
+      const response = await axios.put(
+        `http://localhost:5000/approvals/${editId}/reject`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
       
       setSuccess("Edit rejected successfully!");
       fetchPendingApprovals();
-      
-      setTimeout(() => setSuccess(""), 2000);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to reject edit");
+      console.error('Error rejecting change:', err);
     } finally {
       setLoading(false);
     }
   };
-
   const formatFieldName = (field) => {
     // Convert camelCase to readable format
     return field
