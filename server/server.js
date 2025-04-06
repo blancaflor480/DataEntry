@@ -46,6 +46,85 @@ const sheets = google.sheets({
   }),
 });
 
+// Add this function near the top of server.js after the Google Drive setup
+async function getOrCreateEmployeeFolder(employeeNo, lastName) {
+  try {
+    const folderName = `${lastName}_${employeeNo}`;
+    
+    // Check if folder already exists in the main records folder
+    const { data: { files } } = await drive.files.list({
+      q: `'${DRIVE_RECORDS_FOLDER_ID}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder'`,
+      fields: 'files(id, name)'
+    });
+
+    if (files.length > 0) {
+      return files[0].id; // Return existing folder ID
+    }
+
+    // Create new folder if it doesn't exist
+    const folderMetadata = {
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [DRIVE_RECORDS_FOLDER_ID]
+    };
+
+    const { data: folder } = await drive.files.create({
+      resource: folderMetadata,
+      fields: 'id'
+    });
+
+    return folder.id;
+  } catch (error) {
+    console.error('Error creating/getting employee folder:', error);
+    throw error;
+  }
+}
+// Add this function after getOrCreateEmployeeFolder
+async function uploadEmployeeFile(file, employeeNo, lastName, fileType, dateIssued) {
+  try {
+    // Get or create employee folder
+    const employeeFolderId = await getOrCreateEmployeeFolder(employeeNo, lastName);
+    
+    // Format the filename: TYPE_SURNAME_DATE.ext
+    const fileExt = path.extname(file.originalname);
+    const formattedDate = new Date(dateIssued).toISOString().split('T')[0];
+    const fileName = `${fileType}_${lastName}_${formattedDate}${fileExt}`;
+
+    const fileMetadata = {
+      name: fileName,
+      parents: [employeeFolderId]
+    };
+
+    const media = {
+      mimeType: file.mimetype,
+      body: fs.createReadStream(file.path)
+    };
+
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id'
+    });
+
+    // Make file publicly accessible
+    await drive.permissions.create({
+      fileId: response.data.id,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone'
+      }
+    });
+
+    const fileUrl = `https://drive.google.com/uc?export=view&id=${response.data.id}`;
+    fs.unlinkSync(file.path); // Clean up temp file
+
+    return fileUrl;
+  } catch (error) {
+    console.error('Error uploading employee file:', error);
+    throw error;
+  }
+}
+
 // Add this middleware before your routes
 app.use(async (req, res, next) => {
   try {
@@ -368,68 +447,32 @@ const createUploadsDirectory = () => {
 // Call this after all your imports and middleware, but before your routes
 const uploadsDir = createUploadsDirectory();
 
-// Then add or modify your endpoint
+// Update the /upload-profile endpoint
 app.post("/upload-profile", upload.single("profileImage"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // 1. First save to Google Drive
-    const fileMetadata = {
-      name: req.file.originalname,
-      parents: ["1GXIhhayccVZS9lWRHWia7X8cUXHUMIcp"], // Your profile images folder ID
-    };
+    const { employeeNo, lastName } = req.body;
+    if (!employeeNo || !lastName) {
+      return res.status(400).json({ error: "Employee number and last name are required" });
+    }
 
-    const media = {
-      mimeType: req.file.mimetype,
-      body: fs.createReadStream(req.file.path),
-    };
+    const fileUrl = await uploadEmployeeFile(
+      req.file,
+      employeeNo,
+      lastName,
+      'PROFILE',
+      new Date().toISOString()
+    );
 
-    const response = await drive.files.create({
-      resource: fileMetadata,
-      media: media,
-      fields: "id",
-    });
-
-    const fileId = response.data.id;
-
-    // Make the file publicly accessible
-    await drive.permissions.create({
-      fileId: fileId,
-      requestBody: {
-        role: "reader",
-        type: "anyone",
-      },
-    });
-
-    const driveFileUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-
-    // 2. Now save the file to local storage
-    const uniqueFilename = `${Date.now()}-${req.file.originalname.replace(/\s+/g, '-')}`;
-    const localDestination = path.join(uploadsDir, uniqueFilename);
-    
-    // Create a copy in the profiles folder
-    fs.copyFileSync(req.file.path, localDestination);
-    
-    // Local URL path for the file (relative to server root)
-    const localFileUrl = `/uploads/profiles/${uniqueFilename}`;
-    
-    // Delete the temporary file from the uploads folder created by multer
-    fs.unlinkSync(req.file.path);
-
-    res.status(200).json({ 
-      fileUrl: driveFileUrl,
-      localFileUrl: localFileUrl 
-    });
+    res.status(200).json({ fileUrl });
   } catch (error) {
     console.error("Error uploading profile image:", error);
-    
-    // Make sure to delete the temporary file if there's an error
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    
     res.status(500).json({ error: "Failed to upload profile image" });
   }
 });
@@ -484,49 +527,35 @@ app.post("/upload", upload.single("profile"), async (req, res) => {
 });
 
 // Endpoint to handle file upload to Google Drive for employee attachments
+// Update the /upload-attachment endpoint
 app.post("/upload-attachment", upload.single("attachment"), async (req, res) => {
   try {
-      if (!req.file) {
-          return res.status(400).json({ error: "No file uploaded" });
-      }
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
-      const fileMetadata = {
-          name: req.file.originalname,
-          // Folder ID for employee attachments
-          parents: ["1fIqyPpe2LFjaF1JYywgoe9-028fiMrgq"], // Updated folder ID
-      };
-
-      const media = {
-          mimeType: req.file.mimetype,
-          body: require("fs").createReadStream(req.file.path),
-      };
-
-      const response = await drive.files.create({
-          resource: fileMetadata,
-          media: media,
-          fields: "id",
+    const { employeeNo, lastName, fileType, dateIssued } = req.body;
+    if (!employeeNo || !lastName || !fileType || !dateIssued) {
+      return res.status(400).json({ 
+        error: "Employee number, last name, file type, and date issued are required" 
       });
+    }
 
-      const fileId = response.data.id;
+    const fileUrl = await uploadEmployeeFile(
+      req.file,
+      employeeNo,
+      lastName,
+      fileType.toUpperCase(), // CONTRACT_JOINING, CONTRACT_PROBATION, CONTRACT_REGULAR
+      dateIssued
+    );
 
-      // Make the file publicly accessible
-      await drive.permissions.create({
-          fileId: fileId,
-          requestBody: {
-              role: "reader",
-              type: "anyone",
-          },
-      });
-
-      const fileUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-
-      // Delete the temporary file
-      require("fs").unlinkSync(req.file.path);
-
-      res.status(200).json({ fileUrl });
+    res.status(200).json({ fileUrl });
   } catch (error) {
-      console.error("Error uploading attachment to Google Drive:", error);
-      res.status(500).json({ error: "Failed to upload attachment" });
+    console.error("Error uploading attachment:", error);
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: "Failed to upload attachment" });
   }
 });
 
@@ -959,6 +988,26 @@ app.get("/employees", async (req, res) => {
   });
 
 // Get pending approvals
+// Add this new endpoint after your existing /approvals/pending endpoint
+app.get("/approvals/history", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ea.*, e.firstName, e.lastName 
+       FROM edit_approvals ea
+       JOIN employees e ON ea.employeeId = e.id
+       WHERE ea.status IN ('approved', 'rejected')
+       ORDER BY 
+         CASE 
+           WHEN ea.approvedAt IS NOT NULL THEN ea.approvedAt
+           ELSE ea.rejectedAt
+         END DESC`
+    );
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error("Error fetching approval history:", error);
+    res.status(500).json({ error: "Failed to fetch approval history" });
+  }
+});
 app.get("/approvals/pending", async (req, res) => {
   try {
     const [rows] = await pool.query(

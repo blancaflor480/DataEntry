@@ -423,40 +423,53 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
         }
 
          // Upload profile image first
-      if (formData.profileImage) {
-        const profileFormData = new FormData();
-        profileFormData.append("profileImage", formData.profileImage);
-        const profileResponse = await axios.post(
-          "http://localhost:5000/upload-profile", 
-          profileFormData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data'
+         if (formData.profileImage) {
+          const profileFormData = new FormData();
+          profileFormData.append("profileImage", formData.profileImage);
+          profileFormData.append("employeeNo", formData.employeeNo); // Add these
+          profileFormData.append("lastName", formData.lastName);     // Add these
+          const profileResponse = await axios.post(
+            "http://localhost:5000/upload-profile", 
+            profileFormData,
+            {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
             }
-          }
-        );
-        fileUrls.profileImageUrl = profileResponse.data.fileUrl;
-      }
+          );
+          fileUrls.profileImageUrl = profileResponse.data.fileUrl;
+        }
         // Upload joining contract if exists
+        // Update the contract upload sections in handleSubmit
         if (formData.joiningContract) {
           const joiningContractFormData = new FormData();
           joiningContractFormData.append("attachment", formData.joiningContract);
+          joiningContractFormData.append("employeeNo", formData.employeeNo);
+          joiningContractFormData.append("lastName", formData.lastName);
+          joiningContractFormData.append("fileType", "CONTRACT_JOINING");
+          joiningContractFormData.append("dateIssued", formData.dateHire);
           const joiningResponse = await axios.post("http://localhost:5000/upload-attachment", joiningContractFormData);
           fileUrls.joiningContractUrl = joiningResponse.data.fileUrl;
         }
-        
-        // Upload probation contract if exists
+
         if (formData.probationContract) {
           const probationContractFormData = new FormData();
           probationContractFormData.append("attachment", formData.probationContract);
+          probationContractFormData.append("employeeNo", formData.employeeNo);
+          probationContractFormData.append("lastName", formData.lastName);
+          probationContractFormData.append("fileType", "CONTRACT_PROBATION");
+          probationContractFormData.append("dateIssued", formData.dateHire);
           const probationResponse = await axios.post("http://localhost:5000/upload-attachment", probationContractFormData);
           fileUrls.probationContractUrl = probationResponse.data.fileUrl;
         }
-        
-        // Upload regular contract if exists
+
         if (formData.regularContract) {
           const regularContractFormData = new FormData();
           regularContractFormData.append("attachment", formData.regularContract);
+          regularContractFormData.append("employeeNo", formData.employeeNo);
+          regularContractFormData.append("lastName", formData.lastName);
+          regularContractFormData.append("fileType", "CONTRACT_REGULAR");
+          regularContractFormData.append("dateIssued", formData.dateHire);
           const regularResponse = await axios.post("http://localhost:5000/upload-attachment", regularContractFormData);
           fileUrls.regularContractUrl = regularResponse.data.fileUrl;
         }
