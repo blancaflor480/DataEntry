@@ -648,19 +648,35 @@ const handleRemoveNewProfileImage = () => {
                               required
                             >
                               <option value="">Select Here</option>
-                              <option value="Managing Director">Managing Director</option>
-                              <option value="Human Resources">Human Resources</option>
-                              <option value="Excutive Secretary">Excutative Secretary</option>
-                              <option value="Marketing">Marketing</option>
-                              <option value="Sales">Sales</option>
-                              <option value="Site Engineer">Site Engineer</option>
-                              <option value="Site Production Super Visor">Site Production Super Visor</option>
-                              <option value="Admin Staff">Admin Staff</option>
-                              <option value="Head Office">Head Office</option>
-                              <option value="Production Officers">Production Officers</option>
-                              <option value="Purchasing">Purchasing</option>
-                              <option value="Driver">Driver</option>
-                              <option value="Helper">Helper</option>
+                              <option value="Sales Director">Sales Director</option>
+                  <option value="Production Manager">Production Manager</option>
+                  <option value="Supply Chain Manage">Supply Chain Manager</option>
+                  <option value="Project Manager">Project Manager</option>
+                  <option value="Marketing Manager">Marketing Manager</option>
+                  <option value="Procurement Manager">Procurement Manager</option>
+                  <option value="IT Specialist">IT Specialist</option>
+                  <option value="Purchasing head">Purchasing head</option>
+                  <option value="Purchasing Staff">Purchasing Staff</option>
+                  <option value="Human Resource">Human Resource</option>
+                  <option value="Finance Officer">Finance Officer</option>
+                  <option value="Admin Staff">Admin Staff</option>
+                  <option value="Accounting Staff">Accounting Staff</option>
+                  <option value="Bookeeping Staff">Bookeeping Staff</option>
+                  <option value="Sales Staff">Sales Staff</option>
+                  <option value="Marketing Staff">Marketing Staff</option>
+                  <option value="Logistic Officer">Logistic Officer</option>
+                  <option value="Compounding Officer">Compounding Officer</option>
+                  <option value="Scheduling Officer">Scheduling Officer</option>
+                  <option value="Facility and Maintenance Officer">Facility and Maintenance Officer</option>
+                  <option value="Molding Officer">Molding Officer</option>
+                  <option value="Production Officer">Production Officer</option>
+                  <option value="Site Engineer">Site Engineer</option>
+                  <option value="Sales Engineer">Sales Engineer</option>
+                  <option value="Architect">Architect</option>
+                  <option value="Sales Manager">Sales Manager</option>
+                  <option value="CEO">CEO</option>
+                  <option value="COO">COO</option>
+ 
                             </Form.Select>
                             <Form.Control.Feedback type="invalid">
                               {errors.position}
