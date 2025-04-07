@@ -9,7 +9,8 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
       middleName: "",
       lastName: "",
       employeeNo: "",
-      status: "Probation",
+      status: "Active",
+      employmentType: "",
       position: "",
       dateHire: "",
       endDate: "",
@@ -481,6 +482,7 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
           lastName: formData.lastName,
           employeeNo: formData.employeeNo,
           status: formData.status,
+          employmentType: formData.employmentType,
           position: formData.position,
           dateHire: formData.dateHire,
           endDate: formData.endDate || null,
@@ -515,7 +517,8 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
           middleName: "",
           lastName: "",
           employeeNo: "",
-          status: "Probation",
+          status: "Active",
+          employmentType: "",
           position: "",
           dateHire: "",
           endDate: "",
@@ -645,25 +648,63 @@ const AddEmployeeModal = ({ show, onHide, onEmployeeAdded }) => {
               </Form.Group>
             </Col>
             <Col>
-              <Form.Group controlId="status">
-                <Form.Label className="mt-3">Status <span className="req">*</span></Form.Label>
-                <Form.Select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Select Here</option>
-                  <option value="Probation">Probation</option>
-                  <option value="Active">Active</option>
-                  <option value="Regular">Regular</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Resigned">Resigned</option>
-                  <option value="Terminate">Terminate</option>
-                  <option value="Awol">AWOL</option>
-                </Form.Select>
-              </Form.Group>
+            <Form.Group controlId="status">
+              <Form.Label className="mt-3">Status <span className="req">*</span></Form.Label>
+              <Form.Select
+                name="status"
+                value={formData.status}
+                onChange={(e) => {
+                  const newStatus = e.target.value;
+                  // Reset employment type when changing main status
+                  setFormData(prev => ({
+                    ...prev,
+                    status: newStatus,
+                    employmentType: '' // Add this field to formData state
+                  }));
+                }}
+                required
+              >
+                <option value="">Select Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </Form.Select>
+            </Form.Group>
             </Col>
+            <Col>
+            <Form.Group controlId="employmentType">
+              <Form.Label className="mt-3">Employment Type <span className="req">*</span></Form.Label>
+              <Form.Select
+                name="employmentType"
+                value={formData.employmentType}
+                onChange={handleChange}
+                required
+                disabled={!formData.status} // Disable until status is selected
+              >
+                <option value="">Select Employment Type</option>
+                {formData.status === 'Active' ? (
+                  <>
+                    <option value="On Probationary">On Probationary</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Contractual">Contractual</option>
+                    <option value="Project Based">Project Based</option>
+                    <option value="Part-Time">Part-Time</option>
+                    <option value="Trainee/Intern">Trainee/Intern</option>
+                  </>
+                ) : formData.status === 'Inactive' ? (
+                  <>
+                    <option value="Resigned">Resigned</option>
+                    <option value="AWOL">AWOL</option>
+                    <option value="Terminated">Terminated</option>
+                    <option value="Retired">Retired</option>
+                    <option value="End of Contract">End of Contract</option>
+                    <option value="Laid Off">Laid Off</option>
+                    <option value="Dismissed">Dismissed</option>
+                  </>
+                ) : null}
+              </Form.Select>
+            </Form.Group>
+            </Col>
+
             <Col>
               <Form.Group controlId="position">
                 <Form.Label className="mt-3">Position <span className="req">*</span></Form.Label>

@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const fs = require('fs');
+const https = require('https');
 const admin = require("firebase-admin");
 const multer = require("multer");
 const { google } = require("googleapis");
@@ -215,7 +216,7 @@ async function insertEmployeeToSheet(employeeData) {
       if (!headers || headers.length === 0) {
           const headerRow = [
               'ID', 'First Name', 'Middle Name', 'Last Name', 'Employee No', 
-              'Status', 'Position', 'Date Hired', 'End Date', 'Personal Contact',
+              'Status', 'Employment Type','Position', 'Date Hired', 'End Date', 'Personal Contact',
               'Personal Email', 'Corporate Email', 'Birthday', 'Address',
               'Starting Rate', 'Current Monthly Rate', 'Current Daily Rate','Hours Rate',
               'Foot Size', 'Weight', 'Height', 'BDO Account', 'SSS Number',
@@ -241,6 +242,7 @@ async function insertEmployeeToSheet(employeeData) {
           employeeData.lastName,
           employeeData.employeeNo,
           employeeData.status,
+          employeeData.employmentType || '', // Added employmentType
           employeeData.position,
           employeeData.dateHire ? new Date(employeeData.dateHire).toLocaleDateString() : '',
           employeeData.endDate ? new Date(employeeData.endDate).toLocaleDateString() : '',
@@ -331,6 +333,7 @@ async function updateEmployeeInSheet(employeeData) {
           employeeData.lastName,
           employeeData.employeeNo,
           employeeData.status,
+          employeeData.employmentType || '', // Added employmentType
           employeeData.position,
           employeeData.dateHire ? new Date(employeeData.dateHire).toLocaleDateString() : '',
           employeeData.endDate ? new Date(employeeData.endDate).toLocaleDateString() : '',
@@ -573,7 +576,7 @@ const pool = mysql.createPool({
 // Validation middleware
 const validateEmployeeData = (req, res, next) => {
     const { 
-      firstName, lastName, employeeNo, status, position, dateHire,
+      firstName, lastName, employeeNo, status,position, dateHire,
       personalContact, personalEmail, corporateEmail, birthday, address,
       startingRate, currentMonthlyRate, currentDailyRate, hoursRate
     } = req.body;
@@ -611,7 +614,7 @@ const validateEmployeeData = (req, res, next) => {
   
   try {
       const {
-          firstName, middleName, lastName, employeeNo, status, position,
+          firstName, middleName, lastName, employeeNo, status, employmentType, position,
           dateHire, endDate, footSize, weight, height, personalContact,
           personalEmail, corporateEmail, birthday, address, startingRate,
           currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
@@ -638,6 +641,7 @@ const validateEmployeeData = (req, res, next) => {
               lastName, 
               employeeNo, 
               status, 
+              employmentType, // Added employmentType
               position,
               dateHire, 
               endDate: endDate || '', 
@@ -667,15 +671,15 @@ const validateEmployeeData = (req, res, next) => {
           // Insert employee data into MySQL
           const [result] = await connection.query(
               `INSERT INTO employees (
-                  firstName, middleName, lastName, employeeNo, status, position,
+                  firstName, middleName, lastName, employeeNo, status, employmentType, position,
                   dateHire, endDate, footSize, weight, height, personalContact,
                   personalEmail, corporateEmail, birthday, address, startingRate,
                   currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
                   pagIbigNumber, philhealthNumber, tinNumber,
                   joiningContractUrl, probationContractUrl, regularContractUrl, profileImageUrl
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
-                  firstName, middleName || null, lastName, employeeNo, status, position,
+                  firstName, middleName || null, lastName, employeeNo, status, employmentType, position,
                   dateHire, endDate || null, footSize || null, weight || null, height || null, personalContact,
                   personalEmail, corporateEmail, birthday, address, startingRate,
                   currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount || null, sssNumber || null,
@@ -823,7 +827,7 @@ app.get("/employees", async (req, res) => {
                 
                 try {
                     const {
-                        firstName, middleName, lastName, employeeNo, status, position,
+                        firstName, middleName, lastName, employeeNo, status, employmentType, position,
                         dateHire, endDate, footSize, weight, height, personalContact,
                         personalEmail, corporateEmail, birthday, address, startingRate,
                         currentMonthlyRate, currentDailyRate, hoursRate, bdoAccount, sssNumber,
@@ -834,7 +838,7 @@ app.get("/employees", async (req, res) => {
                     // Update employee data in MySQL
                     await connection.query(
                         `UPDATE employees SET 
-                            firstName = ?, middleName = ?, lastName = ?, employeeNo = ?, status = ?, position = ?,
+                            firstName = ?, middleName = ?, lastName = ?, employeeNo = ?, status = ?, employmentType = ?, position = ?,
                             dateHire = ?, endDate = ?, footSize = ?, weight = ?, height = ?, personalContact = ?,
                             personalEmail = ?, corporateEmail = ?, birthday = ?, address = ?, startingRate = ?,
                             currentMonthlyRate = ?, currentDailyRate = ?, hoursRate = ?, bdoAccount = ?, sssNumber = ?,

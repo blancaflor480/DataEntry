@@ -38,6 +38,7 @@ const DataEntry = () => {
   const [userId, setUserId] = useState(""); // Store user ID for logout tracking
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [pendingEdits, setPendingEdits] = useState([]);
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState("All");
   const navigate = useNavigate();
       
   // New state for sorting
@@ -232,7 +233,9 @@ const processedEmployees = () => {
     const statusFilterMatches = 
       statusFilter === "All" ? true : employee.status === statusFilter;
     
-    return positionMatches && statusFilterMatches;
+    const employmentTypeMatches =
+      employmentTypeFilter === "All" ? true : employee.employmentType === employmentTypeFilter;
+    return positionMatches && statusFilterMatches && employmentTypeMatches;
   }) || [];
 
   result = result.filter((employee) =>
@@ -335,7 +338,6 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
     setShowEditModal(true);
   };
 
-  // Function to render profile image
   const renderProfileImage = (employee) => {
     // Check if employee object exists
     if (!employee) {
@@ -346,26 +348,30 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
       );
     }
   
-    // Check if profileImageUrl exists
-  
-  
-    const profileImageUrl = employee.profileImageUrl;
-  
+    // Check if profileImageUrl exists  
+    //const profileImageUrl = employee.profileImageUrl;
+    const imageUrl = `http://localhost:5000/images/profiles/${employee.id}`;
+
     // Check if it's a local file URL (starts with /uploads/)
     // Check if profileImageUrl exists and is a local upload
-  if (employee.profileImageUrl && employee.profileImageUrl.startsWith('/uploads/profiles/')) {
     return (
       <img
-        src={`http://localhost:5000${employee.profileImageUrl}`}
-        alt="Profile"
-        className="profile-image"
-        onError={(e) => {
-          e.target.onerror = null;
-          e.target.src = "/default-avatar.png";
-        }}
-      />
+      src={imageUrl}
+      alt={`${employee.firstName} ${employee.lastName}`}
+      className="profile-image"
+      style={{
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%',
+        objectFit: 'cover'
+      }}
+      onError={(e) => {
+        e.target.onerror = null;
+        e.target.style.display = 'none';
+        e.target.parentNode.innerHTML = '<i class="fas fa-user-circle" style="font-size: 40px; color: #6c757d;"></i>';
+      }}
+    />
     );
-  }
   
     // If it's already a direct image URL
     return (
@@ -456,6 +462,32 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
                   <option value="All">All</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
+                  </select>
+
+
+                  <label htmlFor="employmentType-filter" className="ms-3 me-2">
+                    Filter by Employment Type:
+                  </label>
+                  <select
+                    id="employmentType-filter"
+                    value={employmentTypeFilter}
+                    onChange={(e) => setEmploymentTypeFilter(e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="All">All</option>
+                    <option value="On Probationary">On Probationary</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Contractual">Contractual</option>
+                    <option value="Project Based">Project Based</option>
+                    <option value="Part-Time">Part-Time</option>
+                    <option value="Trainee/Intern">Trainee/Intern</option>
+                    <option value="Resigned">Resigned</option>
+                    <option value="AWOL">AWOL</option>
+                    <option value="Terminated">Terminated</option>
+                    <option value="Retired">Retired</option>
+                    <option value="End of Contract">End of Contract</option>
+                    <option value="Laid Off">Laid Off</option>
+                    <option value="Dismissed">Dismissed</option>
                   </select>
               </div>
             </div>
@@ -571,6 +603,21 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
         </span>
       </div>
     </th>
+    <th 
+      onClick={() => {
+        setSortColumn('employmentType');
+        setSortDirection(sortColumn === 'employmentType' && sortDirection === 'asc' ? 'desc' : 'asc');
+      }}
+      style={{ cursor: 'pointer' }}
+      className="sortable-header"
+    >
+      <div className="d-flex align-items-center">
+        Employment Type
+        <span className="ms-2">
+          {renderSortIcon('employmentType')}
+        </span>
+      </div>
+    </th>
 
     <th 
       onClick={() => {
@@ -605,6 +652,9 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
           <span className={`status-badge ${employee.status?.toLowerCase() === 'active' ? 'active' : 'inactive'}`}>
             {employee.status || 'N/A'}
           </span>
+        </td>
+        <td>
+          {employee.employmentType || 'N/A'}
         </td>
         <td>{employee.corporateEmail}</td>
         <td>
