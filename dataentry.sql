@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 04, 2025 at 10:46 AM
+-- Generation Time: Apr 07, 2025 at 09:07 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -52,10 +52,9 @@ CREATE TABLE `edit_approvals` (
 --
 
 INSERT INTO `edit_approvals` (`id`, `employeeId`, `employeeName`, `employeeNo`, `field`, `oldValue`, `newValue`, `requestedBy`, `requestedByEmail`, `status`, `requestedAt`, `approvedBy`, `approvedByEmail`, `approvedAt`, `rejectedBy`, `rejectedByEmail`, `rejectedAt`) VALUES
-(1, 1, 'Jade Blancaflor', '2021-001', 'position', 'Managing Director', 'Human Resources', 'gTregEIJSpaxmVFboKW6b3c4WBh1', 'bryanblancaflor007@gmail.com', 'pending', '2025-04-04 08:42:27', NULL, NULL, NULL, NULL, NULL, NULL),
-(2, 1, 'Jade Blancaflor', '2021-001', 'dateHire', '2025-03-28 00:00:00.000', '2025-03-27', 'gTregEIJSpaxmVFboKW6b3c4WBh1', 'bryanblancaflor007@gmail.com', 'pending', '2025-04-04 08:42:27', NULL, NULL, NULL, NULL, NULL, NULL),
-(3, 1, 'Jade Blancaflor', '2021-001', 'endDate', '2025-04-24 00:00:00.000', '2025-04-23', 'gTregEIJSpaxmVFboKW6b3c4WBh1', 'bryanblancaflor007@gmail.com', 'pending', '2025-04-04 08:42:27', NULL, NULL, NULL, NULL, NULL, NULL),
-(4, 1, 'Jade Blancaflor', '2021-001', 'birthday', '2002-08-11 00:00:00.000', '2002-08-10', 'gTregEIJSpaxmVFboKW6b3c4WBh1', 'bryanblancaflor007@gmail.com', 'pending', '2025-04-04 08:42:27', NULL, NULL, NULL, NULL, NULL, NULL);
+(1, 1, 'Juan Cruz', '2021-0001', 'status', 'Active', 'Regular', 'xgTUyrf8yFdIlXUoXS9sPdoKW9O2', 'blancaflor480@gmail.com', 'rejected', '2025-04-07 01:10:15', NULL, NULL, NULL, 'gTregEIJSpaxmVFboKW6b3c4WBh1', 'bryanblancaflor007@gmail.com', '2025-04-07 01:10:53'),
+(2, 1, 'Juan Cruz', '2021-0001', 'position', 'Sales Director', 'Production Manager', 'xgTUyrf8yFdIlXUoXS9sPdoKW9O2', 'blancaflor480@gmail.com', 'approved', '2025-04-07 01:10:15', 'gTregEIJSpaxmVFboKW6b3c4WBh1', 'bryanblancaflor007@gmail.com', '2025-04-07 01:10:54', NULL, NULL, NULL),
+(3, 1, 'Jade Ryan Blancaflor', '2021-0001', 'employmentType', 'Trainee/Intern', 'Regular', 'xgTUyrf8yFdIlXUoXS9sPdoKW9O2', 'blancaflor480@gmail.com', 'pending', '2025-04-07 03:11:17', NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -69,7 +68,8 @@ CREATE TABLE `employees` (
   `middleName` varchar(100) DEFAULT NULL,
   `lastName` varchar(100) NOT NULL,
   `employeeNo` varchar(50) NOT NULL,
-  `status` enum('Active','Regular','Probation','Inactive','Resigned','Terminate','Awol') DEFAULT 'Active',
+  `status` enum('Active','Inactive') DEFAULT 'Active',
+  `employmentType` enum('On Probationary','Regular','Contractual','Project Based','Part-Time','Trainee/Intern','Resigned','AWOL','Terminated','Retired','End of Contract','Laid Off','Dismissed') NOT NULL,
   `position` varchar(100) NOT NULL,
   `dateHire` date NOT NULL,
   `endDate` date DEFAULT NULL,
@@ -102,8 +102,9 @@ CREATE TABLE `employees` (
 -- Dumping data for table `employees`
 --
 
-INSERT INTO `employees` (`id`, `firstName`, `middleName`, `lastName`, `employeeNo`, `status`, `position`, `dateHire`, `endDate`, `footSize`, `weight`, `height`, `personalContact`, `personalEmail`, `corporateEmail`, `birthday`, `address`, `startingRate`, `currentMonthlyRate`, `currentDailyRate`, `hoursRate`, `bdoAccount`, `sssNumber`, `pagIbigNumber`, `philhealthNumber`, `tinNumber`, `joiningContractUrl`, `probationContractUrl`, `regularContractUrl`, `createdAt`, `updatedAt`, `profileImageUrl`) VALUES
-(1, 'Jade', 'Leba', 'Blancaflor', '2021-001', 'Regular', 'Human Resources', '2025-03-27', '2025-04-23', '11', '70', '6\'0', '0938 043 8404', 'bryanblancaflor007@gmail.com', 'matlex12222@gmail.com', '2002-08-10', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, 110.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', NULL, NULL, NULL, '2025-04-03 07:55:08', '2025-04-04 08:42:27', 'https://drive.google.com/uc?export=view&id=1EYd4jdeZhrF6HCyocf6trVALRSx_jWLA');
+INSERT INTO `employees` (`id`, `firstName`, `middleName`, `lastName`, `employeeNo`, `status`, `employmentType`, `position`, `dateHire`, `endDate`, `footSize`, `weight`, `height`, `personalContact`, `personalEmail`, `corporateEmail`, `birthday`, `address`, `startingRate`, `currentMonthlyRate`, `currentDailyRate`, `hoursRate`, `bdoAccount`, `sssNumber`, `pagIbigNumber`, `philhealthNumber`, `tinNumber`, `joiningContractUrl`, `probationContractUrl`, `regularContractUrl`, `createdAt`, `updatedAt`, `profileImageUrl`) VALUES
+(1, 'Jade Ryan', 'Leba', 'Blancaflor', '2021-0001', 'Active', 'Trainee/Intern', 'IT Specialist', '2025-04-01', '2025-04-30', '11', '70', '6\'0', '0938 043 8404', 'bryanblancaflor007@gmail.com', 'matlex.jade@gmail.com', '2002-08-17', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, 110.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1G_hFb0JAbZEDYjmEuixI_hgnFCOQumXM', 'https://drive.google.com/uc?export=view&id=1t_jCje51s_1tIUempQyUROEcz3YNwxkH', 'https://drive.google.com/uc?export=view&id=1r7GIJvCLZ6MO0jlnrfvrLbUMNtjV7LuR', '2025-04-07 05:46:16', '2025-04-07 05:46:16', NULL),
+(2, 'Juan', 'Dela ', 'Cruz', '2021-0002', 'Active', 'Contractual', 'Project Manager', '2025-04-01', '2025-04-30', '11', '70', '6\'0', '0938 043 8404', 'bryanblancaflor007@gmail.com', 'matlex.jade111@gmail.com', '2002-08-17', 'Brgy. Digman, Joseph St. blk, Bacoor City, Cavite', 8000.00, 18000.00, 560.00, 110.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=11NnEfNEDVRUuWiY2Hie1AZdnQV8s0FKq', 'https://drive.google.com/uc?export=view&id=1GLnPVvFDnB7zkGZ0alfM0vImz2nBeA2k', 'https://drive.google.com/uc?export=view&id=1IjCgh6iNYpgP3rC1yfh26yR_Lb6OkZ0E', '2025-04-07 05:55:00', '2025-04-07 05:55:00', 'https://drive.google.com/uc?export=view&id=1muap1Jrs3w881luL-m6gAXSnEKP4xQR9');
 
 -- --------------------------------------------------------
 
@@ -202,13 +203,13 @@ ALTER TABLE `employee_records`
 -- AUTO_INCREMENT for table `edit_approvals`
 --
 ALTER TABLE `edit_approvals`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `employees`
 --
 ALTER TABLE `employees`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `employee_leave`
