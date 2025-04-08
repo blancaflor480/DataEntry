@@ -46,7 +46,7 @@ const sheets = google.sheets({
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   }),
 });
-
+const DRIVE_RECORDS_FOLDER_ID = '1RLnXZNZhnJzcBdauSdmruqqJweFD-lXy';
 // Add this function near the top of server.js after the Google Drive setup
 async function getOrCreateEmployeeFolder(employeeNo, lastName) {
   try {
@@ -125,7 +125,78 @@ async function uploadEmployeeFile(file, employeeNo, lastName, fileType, dateIssu
     throw error;
   }
 }
+//Record IR
+// Add this function after your existing upload functions
+async function uploadIncidentAttachment(file, employeeNo, lastName) {
+  try {
+    // Get or create employee folder
+    const folderName = `Employee_${lastName}_${employeeNo}`;
+    
+    // Check if folder exists
+    const { data: { files } } = await drive.files.list({
+      q: `'${DRIVE_RECORDS_FOLDER_ID}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder'`,
+      fields: 'files(id, name)'
+    });
 
+    let folderId;
+    if (files.length > 0) {
+      folderId = files[0].id;
+    } else {
+      // Create new folder
+      const folderMetadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [DRIVE_RECORDS_FOLDER_ID]
+      };
+      const { data: folder } = await drive.files.create({
+        resource: folderMetadata,
+        fields: 'id'
+      });
+      folderId = folder.id;
+    }
+
+    // Upload file
+    const fileExt = path.extname(file.originalname);
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
+    const fileName = `IR_${lastName}_${employeeNo}_${timestamp}${fileExt}`;
+
+    const fileMetadata = {
+      name: fileName,
+      parents: [folderId]
+    };
+
+    const media = {
+      mimeType: file.mimetype,
+      body: fs.createReadStream(file.path)
+    };
+
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id'
+    });
+
+    // Make file publicly accessible
+    await drive.permissions.create({
+      fileId: response.data.id,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone'
+      }
+    });
+
+    const fileUrl = `https://drive.google.com/uc?export=view&id=${response.data.id}`;
+    fs.unlinkSync(file.path);
+
+    return {
+      path: fileUrl,
+      name: fileName
+    };
+  } catch (error) {
+    console.error('Error uploading incident attachment:', error);
+    throw error;
+  }
+}
 // Add this middleware before your routes
 app.use(async (req, res, next) => {
   try {
@@ -1189,214 +1260,275 @@ app.put("/approvals/:id/reject", async (req, res) => {
 
 //Record
 // Add these constants at the top with other configurations
-const RECORDS_SHEET_NAME = 'Employee_Records';
-const DRIVE_RECORDS_FOLDER_ID = '1RLnXZNZhnJzcBdauSdmruqqJweFD-lXy'; // Your shared folder ID
+// Add these constants at the top of server.js
+const IR_SHEET_NAME = 'Incident_Reports';
 
-const e = require("express");
-
-// Add this function to create employee folders
-async function getOrCreateEmployeeFolder(employeeNo, lastName) {
-  try {
-    const folderName = `Employee_${lastName}_${employeeNo}`;
-    
-    // Check if folder already exists
-    const { data: { files } } = await drive.files.list({
-      q: `'${DRIVE_RECORDS_FOLDER_ID}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder'`,
-      fields: 'files(id, name)'
-    });
-
-    if (files.length > 0) {
-      return files[0].id; // Return existing folder ID
-    }
-
-    // Create new folder if it doesn't exist
-    const folderMetadata = {
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: [DRIVE_RECORDS_FOLDER_ID]
-    };
-
-    const { data: folder } = await drive.files.create({
-      resource: folderMetadata,
-      fields: 'id'
-    });
-
-    return folder.id;
-  } catch (error) {
-    console.error('Error creating employee folder:', error);
-    throw error;
-  }
-}
-
-// Add this function to verify records sheet exists
-async function verifyRecordsSheetExists() {
+// Add this function after other sheet verification functions
+async function verifyIncidentReportSheetExists() {
   try {
     const spreadsheet = await sheets.spreadsheets.get({
       spreadsheetId: SPREADSHEET_ID,
       fields: 'sheets.properties'
     });
     
-    const sheetExists = spreadsheet.data.sheets.some(
-      sheet => sheet.properties.title === RECORDS_SHEET_NAME
+    let sheetId = null;
+    const existingSheet = spreadsheet.data.sheets.find(
+      sheet => sheet.properties.title === IR_SHEET_NAME
     );
     
-    if (!sheetExists) {
-      await sheets.spreadsheets.batchUpdate({
+    if (existingSheet) {
+      sheetId = existingSheet.properties.sheetId;
+    } else {
+      // Create new sheet
+      const addSheetResponse = await sheets.spreadsheets.batchUpdate({
         spreadsheetId: SPREADSHEET_ID,
         resource: {
           requests: [{
             addSheet: {
               properties: {
-                title: RECORDS_SHEET_NAME
+                title: IR_SHEET_NAME,
+                gridProperties: {
+                  frozenRowCount: 1 // Freeze the header row
+                }
               }
             }
           }]
         }
       });
-      
-      // Add headers to the new sheet
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${RECORDS_SHEET_NAME}!A1`,
-        valueInputOption: 'USER_ENTERED',
-        resource: {
-          values: [[
-            'Record ID', 'Employee No', 'Employee Name', 'Type', 
-            'Date Issued', 'Details', 'Attachment', 'Status'
-          ]]
-        }
-      });
+      sheetId = addSheetResponse.data.replies[0].addSheet.properties.sheetId;
     }
+
+    // Always update headers and their formatting
+    // First, update the header values
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${IR_SHEET_NAME}!A1:T1`,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[
+          'Incident ID', 
+          'Reported By',
+          'Employee No',
+          'Employee Name',
+          'Department Head',
+          'Incident Category',
+          'Incident Type',
+          'Incident Date',
+          'Incident Time',
+          'Department',
+          'Location',
+          'Description',
+          'Witnesses',
+          'Severity',
+          'Status',
+          'Attachments',
+          'Resolution Details',
+          'Reviewed By',
+          'Review Date',
+          'Created At'
+        ]]
+      }
+    });
+
+    // Then, apply header formatting
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      resource: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId: sheetId,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: 20
+              },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: {
+                    red: 0.2,
+                    green: 0.2,
+                    blue: 0.2
+                  },
+                  textFormat: {
+                    bold: true,
+                    foregroundColor: {
+                      red: 1.0,
+                      green: 1.0,
+                      blue: 1.0
+                    }
+                  },
+                  horizontalAlignment: 'CENTER',
+                  verticalAlignment: 'MIDDLE'
+                }
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+            }
+          },
+          {
+            updateSheetProperties: {
+              properties: {
+                sheetId: sheetId,
+                gridProperties: {
+                  frozenRowCount: 1
+                }
+              },
+              fields: 'gridProperties.frozenRowCount'
+            }
+          }
+        ]
+      }
+    });
+
   } catch (error) {
-    console.error('Error verifying records sheet:', error);
+    console.error('Error verifying incident report sheet:', error);
     throw error;
   }
 }
 
-// Add this function to sync record to Google Sheets
-async function syncRecordToSheet(record, employeeName) {
+// Add sync function for incident reports
+async function syncIncidentToSheet(incident, employeeName) {
   try {
-    await verifyRecordsSheetExists();
+    await verifyIncidentReportSheetExists();
     
-    // Format the date properly
-    let formattedDate;
-    if (record.dateIssued instanceof Date) {
-      formattedDate = record.dateIssued.toISOString().split('T')[0];
-    } else if (typeof record.dateIssued === 'string') {
-      // If it's already in YYYY-MM-DD format, use as-is
-      formattedDate = record.dateIssued.includes('T') 
-        ? record.dateIssued.split('T')[0]
-        : record.dateIssued;
-    } else {
-      formattedDate = 'N/A';
-    }
+    // Format dates
+    const incidentDate = incident.incident_date ? new Date(incident.incident_date).toLocaleDateString() : '';
+    const reviewDate = incident.review_date ? new Date(incident.review_date).toLocaleDateString() : '';
+    const createdAt = incident.created_at ? new Date(incident.created_at).toLocaleDateString() : '';
+    
+    // Format attachments
+    const attachments = [
+      incident.attachment1_path,
+      incident.attachment2_path,
+      incident.attachment3_path
+    ].filter(Boolean).join(', ');
 
     const row = [
-      record.recordID,
-      record.employeeNo,
+      incident.incident_id,
+      incident.reported_by,
+      incident.employee_no,
       employeeName,
-      record.type,
-      formattedDate,  // Use the properly formatted date
-      record.details,
-      record.attachment || 'N/A',
-      record.status
+      incident.department_head,
+      incident.incident_category,
+      incident.incident_type,
+      incidentDate,
+      incident.incident_time,
+      incident.department,
+      incident.location,
+      incident.description,
+      incident.witnesses || '',
+      incident.severity,
+      incident.status,
+      attachments,
+      incident.resolution_details || '',
+      incident.reviewed_by || '',
+      reviewDate,
+      createdAt
     ];
 
-    // Rest of the function remains the same
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${RECORDS_SHEET_NAME}!A:H`,
+      range: `${IR_SHEET_NAME}!A:R`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       resource: { values: [row] }
     });
   } catch (error) {
-    console.error('Error syncing record to sheet:', error);
+    console.error('Error syncing incident to sheet:', error);
     throw error;
   }
 }
 
-// Add this function to update record in Google Sheets
-async function updateRecordInSheet(record, employeeName) {
+// Add update function for incident reports
+async function updateIncidentInSheet(incident, employeeName) {
   try {
-    // Get all records from sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${RECORDS_SHEET_NAME}!A:H`
+      range: `${IR_SHEET_NAME}!A:R`
     });
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) return;
 
-    // Find the row with matching record ID
     const rowIndex = rows.findIndex((row, index) => 
-      index > 0 && row[0] === record.recordID.toString()
+      index > 0 && row[0] === incident.incident_id.toString()
     );
 
-    let formattedDate;
-    if (record.dateIssued instanceof Date) {
-      formattedDate = record.dateIssued.toISOString().split('T')[0];
-    } else if (typeof record.dateIssued === 'string') {
-      formattedDate = record.dateIssued.includes('T') 
-        ? record.dateIssued.split('T')[0]
-        : record.dateIssued;
-    } else {
-      formattedDate = 'N/A';
-    }
+    if (rowIndex === -1) return;
 
-    if (rowIndex === -1) return; // Record not found in sheet
+    // Format the data same as sync function
+    const incidentDate = incident.incident_date ? new Date(incident.incident_date).toLocaleDateString() : '';
+    const reviewDate = incident.review_date ? new Date(incident.review_date).toLocaleDateString() : '';
+    const createdAt = incident.created_at ? new Date(incident.created_at).toLocaleDateString() : '';
+    
+    const attachments = [
+      incident.attachment1_path,
+      incident.attachment2_path,
+      incident.attachment3_path
+    ].filter(Boolean).join(', ');
 
-    // Update the specific row
+    const updatedRow = [
+      incident.incident_id,
+      incident.reported_by,
+      incident.employee_no,
+      employeeName,
+      incident.department_head,
+      incident.incident_category,
+      incident.incident_type,
+      incidentDate,
+      incident.incident_time,
+      incident.department,
+      incident.location,
+      incident.description,
+      incident.witnesses || '',
+      incident.severity,
+      incident.status,
+      attachments,
+      incident.resolution_details || '',
+      incident.reviewed_by || '',
+      reviewDate,
+      createdAt
+    ];
+
     await sheets.spreadsheets.values.update({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${RECORDS_SHEET_NAME}!A${rowIndex + 1}`,
+      range: `${IR_SHEET_NAME}!A${rowIndex + 1}`,
       valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [[
-          record.recordID,
-          record.employeeNo,
-          employeeName,
-          record.type,
-          record.formattedDate,
-          record.details,
-          record.attachment || 'N/A',
-          record.status
-        ]]
-      }
+      resource: { values: [updatedRow] }
     });
   } catch (error) {
-    console.error('Error updating record in sheet:', error);
+    console.error('Error updating incident in sheet:', error);
     throw error;
   }
 }
 
-// Add this function to delete record from Google Sheets
-async function deleteRecordFromSheet(recordId) {
+// Add delete function for incident reports
+async function deleteIncidentFromSheet(incidentId) {
   try {
-    // Get all records from sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${RECORDS_SHEET_NAME}!A:H`
+      range: `${IR_SHEET_NAME}!A:R`
     });
 
     const rows = response.data.values;
     if (!rows || rows.length === 0) return;
 
-    // Find the row with matching record ID
     const rowIndex = rows.findIndex((row, index) => 
-      index > 0 && row[0] === recordId.toString()
+      index > 0 && row[0] === incidentId.toString()
     );
 
-    if (rowIndex === -1) return; // Record not found in sheet
+    if (rowIndex === -1) return;
 
-    // Delete the row
+    const sheetId = await getSheetId(IR_SHEET_NAME);
+    
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       resource: {
         requests: [{
           deleteDimension: {
             range: {
-              sheetId: await getSheetId(RECORDS_SHEET_NAME),
+              sheetId: sheetId,
               dimension: "ROWS",
               startIndex: rowIndex,
               endIndex: rowIndex + 1
@@ -1406,227 +1538,253 @@ async function deleteRecordFromSheet(recordId) {
       }
     });
   } catch (error) {
-    console.error('Error deleting record from sheet:', error);
+    console.error('Error deleting incident from sheet:', error);
     throw error;
   }
 }
 
-// Helper function to get sheet ID by name
-async function getSheetId(sheetName) {
-  const { data } = await sheets.spreadsheets.get({
-    spreadsheetId: SPREADSHEET_ID,
-    fields: 'sheets.properties'
-  });
-  
-  const sheet = data.sheets.find(s => s.properties.title === sheetName);
-  return sheet ? sheet.properties.sheetId : null;
-}
-
-
-// Endpoint to get all records with employee names
-app.get("/records", async (req, res) => {
+// Get all incident reports
+app.get("/incident-reports", async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT er.*, e.firstName, e.lastName 
-      FROM employee_records er
-      LEFT JOIN employees e ON er.employeeNo = e.employeeNo
-      ORDER BY er.dateIssued DESC
+      SELECT ir.*, 
+             e.firstName, 
+             e.lastName,
+             CONCAT(e.firstName, ' ', e.lastName) as employee_name
+      FROM incident_reports ir
+      LEFT JOIN employees e ON ir.employee_no = e.employeeNo
+      ORDER BY ir.incident_date DESC, ir.incident_time DESC
     `);
-    
-    // Format the data to include full employee name
-    const records = rows.map(row => ({
-      ...row,
-      employeeName: `${row.firstName} ${row.lastName}`
-    }));
-    
-    res.status(200).json(records);
+    res.status(200).json(rows);
   } catch (error) {
-    console.error("Error fetching records:", error);
-    res.status(500).json({ error: "Failed to fetch records" });
+    console.error("Error fetching incident reports:", error);
+    res.status(500).json({ error: "Failed to fetch incident reports" });
   }
 });
 
 // Update the POST /records endpoint
-app.post("/records", upload.single('attachment'), async (req, res) => {
+// Update the POST endpoint for incident reports
+app.post("/incident-reports", upload.array('attachments', 3), async (req, res) => {
   try {
-    console.log("Request body:", req.body);
-    console.log("Request file:", req.file);
-    const { employeeNo, type, dateIssued, details, status } = req.body;
-    // Detailed logging of input validation
-    console.log("Employee No:", employeeNo);
-    console.log("Type:", type);
-    console.log("Date Issued:", dateIssued);
-    console.log("Details:", details);
-    console.log("Status:", status);
-    // Get employee details to create folder
+    const {
+      reported_by,
+      employee_no,
+      department_head,
+      incident_category,
+      incident_type,
+      incident_date,
+      incident_time,
+      department,
+      location,
+      description,
+      witnesses,
+      severity,
+      status = 'Open'
+    } = req.body;
+
+    // Get employee details
     const [employee] = await pool.query(
-      'SELECT lastName FROM employees WHERE employeeNo = ?',
-      [employeeNo]
+      'SELECT firstName, lastName FROM employees WHERE employeeNo = ?',
+      [employee_no]
     );
-    
+
     if (!employee.length) {
       return res.status(400).json({ error: "Employee not found" });
     }
 
-    // Create or get employee folder
-    const folderId = await getOrCreateEmployeeFolder(employeeNo, employee[0].lastName);
-    
-    let attachmentUrl = '';
-    
-    // If there's a file upload, handle it
-    if (req.file) {
-      // Format the filename as Type_LastName_DateIssued.ext
-      const fileExt = path.extname(req.file.originalname);
-      const formattedDate = new Date(dateIssued).toISOString().split('T')[0];
-      const fileName = `${type}_${employee[0].lastName}_${formattedDate}${fileExt}`;
+    const employeeName = `${employee[0].firstName} ${employee[0].lastName}`;
+    const attachmentResults = [];
 
-      const fileMetadata = {
-        name: fileName,
-        parents: [folderId]
-      };
-
-      const media = {
-        mimeType: req.file.mimetype,
-        body: fs.createReadStream(req.file.path),
-      };
-
-      const response = await drive.files.create({
-        resource: fileMetadata,
-        media: media,
-        fields: "id",
-      });
-
-      const fileId = response.data.id;
-      await drive.permissions.create({
-        fileId: fileId,
-        requestBody: { role: "reader", type: "anyone" },
-      });
-
-      attachmentUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-      fs.unlinkSync(req.file.path);
+    if (req.files && req.files.length > 0) {
+      for (let i = 0; i < req.files.length; i++) {
+        const attachmentResult = await uploadIncidentAttachment(
+          req.files[i],
+          employee_no,
+          employee[0].lastName
+        );
+        attachmentResults.push(attachmentResult);
+      }
     }
 
-    // Insert record into MySQL
+    // Insert into database
     const [result] = await pool.query(
-      `INSERT INTO employee_records 
-      (employeeNo, type, dateIssued, details, attachment, status) 
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [employeeNo, type, dateIssued, details, attachmentUrl || null, status || 'Pending']
+      `INSERT INTO incident_reports (
+        reported_by, employee_no, department_head, incident_category, incident_type,
+        incident_date, incident_time, department, location, description,
+        witnesses, severity, status,
+        attachment1_path, attachment1_name,
+        attachment2_path, attachment2_name,
+        attachment3_path, attachment3_name
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        reported_by,
+        employee_no,
+        department_head,
+        incident_category,
+        incident_type,
+        incident_date,
+        incident_time,
+        department,
+        location,
+        description,
+        witnesses,
+        severity,
+        status,
+        attachmentResults[0]?.path || null,
+        attachmentResults[0]?.name || null,
+        attachmentResults[1]?.path || null,
+        attachmentResults[1]?.name || null,
+        attachmentResults[2]?.path || null,
+        attachmentResults[2]?.name || null
+      ]
     );
-    
-    // Get the full record with employee name for Google Sheets
-    const [newRecord] = await pool.query(
-      `SELECT er.*, CONCAT(e.firstName, ' ', e.lastName) as employeeName 
-       FROM employee_records er
-       JOIN employees e ON er.employeeNo = e.employeeNo
-       WHERE er.recordID = ?`,
+
+    // Get the full incident report data
+    const [newIncident] = await pool.query(
+      'SELECT * FROM incident_reports WHERE incident_id = ?',
       [result.insertId]
     );
 
     // Sync to Google Sheets
-    await syncRecordToSheet(newRecord[0], newRecord[0].employeeName);
-    
-    res.status(201).json({ 
-      message: "Record created successfully", 
-      recordId: result.insertId 
+    await syncIncidentToSheet(newIncident[0], employeeName);
+
+    res.status(201).json({
+      message: "Incident report created successfully",
+      incident_id: result.insertId
     });
   } catch (error) {
-    console.error("Error creating record:", error);
-    res.status(500).json({ error: "Failed to create record" });
+    console.error("Error creating incident report:", error);
+    res.status(500).json({ error: "Failed to create incident report" });
   }
 });
 
-// Update the PUT /records/:id endpoint
-app.put("/records/:id", upload.single('attachment'), async (req, res) => {
-  try {
-    const recordId = req.params.id;
-    const { employeeNo, type, dateIssued, details, status } = req.body;
-    
-    // First get the existing record and employee details
-    const [record] = await pool.query(
-      'SELECT * FROM employee_records WHERE recordID = ?',
-      [recordId]
-    );
-    
-    if (!record.length) {
-      return res.status(404).json({ error: "Record not found" });
-    }
+// Similarly update the PUT and DELETE endpoints to include sheet operations
 
+// Update the PUT /records/:id endpoint
+app.put("/incident-reports/:id", upload.array('attachments', 3), async (req, res) => {
+  try {
+    const incidentId = req.params.id;
+    const {
+      reported_by,
+      employee_no,
+      department_head,
+      incident_category,
+      incident_type,
+      incident_date,
+      incident_time,
+      department,
+      location,
+      description,
+      witnesses,
+      severity,
+      status,
+      resolution_details
+    } = req.body;
+
+    // Get employee details
     const [employee] = await pool.query(
-      'SELECT lastName FROM employees WHERE employeeNo = ?',
-      [employeeNo]
+      'SELECT firstName, lastName FROM employees WHERE employeeNo = ?',
+      [employee_no]
     );
 
     if (!employee.length) {
       return res.status(400).json({ error: "Employee not found" });
     }
 
-    let attachmentUrl = record[0].attachment;
-    
-    // If there's a new file upload, handle it
-    if (req.file) {
-      // Format the filename as Type_LastName_DateIssued.ext
-      const fileExt = path.extname(req.file.originalname);
-      const formattedDate = new Date(dateIssued).toISOString().split('T')[0];
-      const fileName = `${type}_${employee[0].lastName}_${formattedDate}${fileExt}`;
+    const employeeName = `${employee[0].firstName} ${employee[0].lastName}`;
+    const attachmentResults = [];
 
-      const folderId = await getOrCreateEmployeeFolder(employeeNo, employee[0].lastName);
-
-      const fileMetadata = {
-        name: fileName,
-        parents: [folderId]
-      };
-
-      const media = {
-        mimeType: req.file.mimetype,
-        body: fs.createReadStream(req.file.path),
-      };
-
-      const response = await drive.files.create({
-        resource: fileMetadata,
-        media: media,
-        fields: "id",
-      });
-
-      const fileId = response.data.id;
-      await drive.permissions.create({
-        fileId: fileId,
-        requestBody: { role: "reader", type: "anyone" },
-      });
-
-      attachmentUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-      fs.unlinkSync(req.file.path);
+    if (req.files && req.files.length > 0) {
+      for (let i = 0; i < req.files.length; i++) {
+        const attachmentResult = await uploadIncidentAttachment(
+          req.files[i],
+          employee_no,
+          employee[0].lastName
+        );
+        attachmentResults.push(attachmentResult);
+      }
     }
 
-    // Update record in MySQL
-    const [result] = await pool.query(
-      `UPDATE employee_records SET 
-        employeeNo = ?, type = ?, dateIssued = ?, 
-        details = ?, attachment = ?, status = ?
-      WHERE recordID = ?`,
-      [employeeNo, type, dateIssued, details, attachmentUrl || null, status, recordId]
+    // Get current incident data for attachment handling
+    const [currentIncident] = await pool.query(
+      'SELECT attachment1_path, attachment2_path, attachment3_path FROM incident_reports WHERE incident_id = ?',
+      [incidentId]
     );
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Record not found" });
+
+    if (!currentIncident.length) {
+      return res.status(404).json({ error: "Incident report not found" });
     }
-    
-    // Get the updated record with employee name
-    const [updatedRecord] = await pool.query(
-      `SELECT er.*, CONCAT(e.firstName, ' ', e.lastName) as employeeName 
-       FROM employee_records er
-       JOIN employees e ON er.employeeNo = e.employeeNo
-       WHERE er.recordID = ?`,
-      [recordId]
+
+    // Update incident report in database
+    const [result] = await pool.query(
+      `UPDATE incident_reports SET
+        reported_by = ?,
+        employee_no = ?,
+        department_head = ?,
+        incident_category = ?,
+        incident_type = ?,
+        incident_date = ?,
+        incident_time = ?,
+        department = ?,
+        location = ?,
+        description = ?,
+        witnesses = ?,
+        severity = ?,
+        status = ?,
+        resolution_details = ?,
+        attachment1_path = ?,
+        attachment1_name = ?,
+        attachment2_path = ?,
+        attachment2_name = ?,
+        attachment3_path = ?,
+        attachment3_name = ?,
+        updated_at = NOW()
+      WHERE incident_id = ?`,
+      [
+        reported_by,
+        employee_no,
+        department_head,
+        incident_category,
+        incident_type,
+        incident_date,
+        incident_time,
+        department,
+        location,
+        description,
+        witnesses,
+        severity,
+        status,
+        resolution_details,
+        attachmentResults[0]?.path || currentIncident[0].attachment1_path,
+        attachmentResults[0]?.name || null,
+        attachmentResults[1]?.path || currentIncident[0].attachment2_path,
+        attachmentResults[1]?.name || null,
+        attachmentResults[2]?.path || currentIncident[0].attachment3_path,
+        attachmentResults[2]?.name || null,
+        incidentId
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Incident report not found" });
+    }
+
+    // Get the updated incident data
+    const [updatedIncident] = await pool.query(
+      'SELECT * FROM incident_reports WHERE incident_id = ?',
+      [incidentId]
     );
 
     // Update Google Sheets
-    await updateRecordInSheet(updatedRecord[0], updatedRecord[0].employeeName);
-    
-    res.status(200).json({ message: "Record updated successfully" });
+    await updateIncidentInSheet(updatedIncident[0], employeeName);
+
+    res.status(200).json({
+      message: "Incident report updated successfully",
+      incident_id: incidentId
+    });
   } catch (error) {
-    console.error("Error updating record:", error);
-    res.status(500).json({ error: "Failed to update record" });
+    console.error("Error updating incident report:", error);
+    res.status(500).json({ error: "Failed to update incident report" });
   }
 });
 
@@ -1739,7 +1897,8 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
   try {
       await verifySheetExists();
-      await verifyRecordsSheetExists();
+      //await verifyRecordsSheetExists();
+      await verifyIncidentReportSheetExists();
       console.log(`Server running on port ${PORT}`);
   } catch (error) {
       console.error('Failed to initialize Google Sheet:', error);

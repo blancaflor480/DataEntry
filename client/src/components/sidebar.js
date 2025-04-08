@@ -56,7 +56,7 @@ const Sidebar = ({ isSidebarOpen, userRole }) => {
               <Link to="/record">
                 <div className="menu-label">
                   <i className="fas fa-file-alt"></i>
-                  <span>Record NTE/IR</span>
+                  <span>Record IR</span>
                 </div>
               </Link>
             </li>

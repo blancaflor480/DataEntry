@@ -99,13 +99,12 @@ const Record = () => {
     const fetchRecords = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://localhost:5000/records');
+        const response = await axios.get('http://localhost:5000/incident-reports');
         // Ensure we have an array even if response.data is null/undefined
         setRecords(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
-        console.error("Error fetching records:", error);
+        console.error("Error fetching incident reports:", error);
         setRecords([]);
-        // You might want to show an error alert here
         setAlertMessage("Failed to load records. Please try again.");
         setAlertVariant("danger");
         setShowAlert(true);
@@ -167,59 +166,68 @@ const Record = () => {
     return employee ? `${employee.firstName} ${employee.lastName}` : "Unknown Employee";
   };
   
+  const getSeverityColor = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case 'low':
+        return 'success';
+      case 'medium':
+        return 'warning';
+      case 'high':
+        return 'danger';
+      case 'critical':
+        return 'dark';
+      default:
+        return 'secondary';
+    }
+  };
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'open':
+        return 'primary';
+      case 'under investigation':
+        return 'warning';
+      case 'resolved':
+        return 'success';
+      case 'closed':
+        return 'secondary';
+      case 'reopened':
+        return 'danger';
+      default:
+        return 'info';
+    }
+  };
   const processedRecords = () => {
     let result = records?.filter((record) => {
       const typeMatches = 
-        typeFilter === "All" ? true : record.type === typeFilter;
+        typeFilter === "All" ? true : record.incident_category === typeFilter;
       
       const statusFilterMatches = 
         statusFilter === "All" ? true : record.status === statusFilter;
       
       return typeMatches && statusFilterMatches;
     }) || [];
-
+  
     result = result.filter((record) =>
-      getEmployeeName(record.employeeNo)
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      record.employeeNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.details?.toLowerCase().includes(searchQuery.toLowerCase())
+      record.employee_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.employee_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
-    // Sorting logic
+  
     if (sortColumn) {
       result.sort((a, b) => {
-        let valA, valB;
-        switch(sortColumn) {
-          case 'employeeNo':
-            valA = a.employeeNo;
-            valB = b.employeeNo;
-            break;
-          case 'employeeName':
-            valA = getEmployeeName(a.employeeNo);
-            valB = getEmployeeName(b.employeeNo);
-            break;
-          case 'type':
-            valA = a.type;
-            valB = b.type;
-            break;
-          case 'dateIssued':
-            valA = new Date(a.dateIssued);
-            valB = new Date(b.dateIssued);
-            break;
-          case 'status':
-            valA = a.status;
-            valB = b.status;
-            break;
-          default:
-            return 0;
-        }
-
-        // Handle potential null or undefined values
+        let valA = a[sortColumn];
+        let valB = b[sortColumn];
+  
+        // Handle null/undefined values
         valA = valA || '';
         valB = valB || '';
-
-        // Perform comparison
+  
+        // Handle dates
+        if (sortColumn === 'incident_date') {
+          valA = new Date(valA);
+          valB = new Date(valB);
+        }
+  
         if (typeof valA === 'string') {
           return sortDirection === 'asc' 
             ? valA.localeCompare(valB) 
@@ -230,7 +238,10 @@ const Record = () => {
             : (valB - valA);
         }
       });
+    // Add these functions before the return statement
+     
     }
+
 
     return result;
   };
@@ -306,21 +317,24 @@ const Record = () => {
           <h1 className="title-page">Record List</h1>
           <div className="box mt-4">
             <div className="list-filter-container">
-              <h3 className="text-type">List of Employee Records (NTE and IR)</h3>
+              <h3 className="text-type">List of Employee Records (IR Incident Report)</h3>
               <div className="filter-container">
                 <label htmlFor="type-filter" className="me-2">
                   Filter by Type:
                 </label>
                 <select
-                  id="type-filter"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="form-select"
-                >
-                  <option value="All">All</option>
-                  <option value="NTE">Notice to Explain</option>
-                  <option value="IR">Incident Report</option>
-                </select>
+                id="type-filter"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="form-select"
+              >
+                <option value="All">All Categories</option>
+                <option value="Employee Behavior">Employee Behavior</option>
+                <option value="Misconduct & Violation">Misconduct & Violation</option>
+                <option value="Workplace Accident">Workplace Accident</option>
+                <option value="Policy Violation">Policy Violation</option>
+                <option value="Other">Other</option>
+              </select>
                 
                 <label htmlFor="status-filter" className="ms-3 me-2">
                   Filter by Status:
@@ -331,10 +345,12 @@ const Record = () => {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="form-select"
                 >
-                  <option value="All">All</option>
-                  <option value="Pending for Approval">Pending for Approval</option>
-                  <option value="Result">Result</option>
-                  <option value="Approved">Approved</option>
+                  <option value="All">All Statuses</option>
+                  <option value="Open">Open</option>
+                  <option value="Under Investigation">Under Investigation</option>
+                  <option value="Resolved">Resolved</option>
+                  <option value="Closed">Closed</option>
+                  <option value="Reopened">Reopened</option>
                 </select>
               </div>
             </div>
@@ -376,155 +392,205 @@ const Record = () => {
                   </div>
                 </div>
               ) : (
-                <table className="table table-striped table-hover">
-                  <thead>
-                    <tr>
-                      <th 
-                        onClick={() => {
-                          setSortColumn('employeeNo');
-                          setSortDirection(sortColumn === 'employeeNo' && sortDirection === 'asc' ? 'desc' : 'asc');
-                        }}
-                        style={{ cursor: 'pointer' }}
-                        className="sortable-header"
+                // Replace the existing table structure inside the table-container
+        <table className="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th 
+                onClick={() => {
+                  setSortColumn('employee_no');
+                  setSortDirection(sortColumn === 'employee_no' && sortDirection === 'asc' ? 'desc' : 'asc');
+                }}
+                style={{ cursor: 'pointer' }}
+                className="sortable-header"
+              >
+                <div className="d-flex align-items-center">
+                  Employee No.
+                  <span className="ms-2">{renderSortIcon('employee_no')}</span>
+                </div>
+              </th>
+
+              <th 
+                onClick={() => {
+                  setSortColumn('employee_name');
+                  setSortDirection(sortColumn === 'employee_name' && sortDirection === 'asc' ? 'desc' : 'asc');
+                }}
+                style={{ cursor: 'pointer' }}
+                className="sortable-header"
+              >
+                <div className="d-flex align-items-center">
+                  Employee Name
+                  <span className="ms-2">{renderSortIcon('employee_name')}</span>
+                </div>
+              </th>
+
+              <th 
+                onClick={() => {
+                  setSortColumn('incident_category');
+                  setSortDirection(sortColumn === 'incident_category' && sortDirection === 'asc' ? 'desc' : 'asc');
+                }}
+                style={{ cursor: 'pointer' }}
+                className="sortable-header"
+              >
+                <div className="d-flex align-items-center">
+                  Category
+                  <span className="ms-2">{renderSortIcon('incident_category')}</span>
+                </div>
+              </th>
+
+              <th 
+                onClick={() => {
+                  setSortColumn('incident_type');
+                  setSortDirection(sortColumn === 'incident_type' && sortDirection === 'asc' ? 'desc' : 'asc');
+                }}
+                style={{ cursor: 'pointer' }}
+                className="sortable-header"
+              >
+                <div className="d-flex align-items-center">
+                  Type
+                  <span className="ms-2">{renderSortIcon('incident_type')}</span>
+                </div>
+              </th>
+
+              <th 
+                onClick={() => {
+                  setSortColumn('incident_date');
+                  setSortDirection(sortColumn === 'incident_date' && sortDirection === 'asc' ? 'desc' : 'asc');
+                }}
+                style={{ cursor: 'pointer' }}
+                className="sortable-header"
+              >
+                <div className="d-flex align-items-center">
+                  Date
+                  <span className="ms-2">{renderSortIcon('incident_date')}</span>
+                </div>
+              </th>
+
+              
+              <th>Description</th>
+              <th>Attachments</th>
+
+              <th 
+                onClick={() => {
+                  setSortColumn('severity');
+                  setSortDirection(sortColumn === 'severity' && sortDirection === 'asc' ? 'desc' : 'asc');
+                }}
+                style={{ cursor: 'pointer' }}
+                className="sortable-header"
+              >
+                <div className="d-flex align-items-center">
+                  Severity
+                  <span className="ms-2">{renderSortIcon('severity')}</span>
+                </div>
+              </th>
+
+              <th 
+                onClick={() => {
+                  setSortColumn('status');
+                  setSortDirection(sortColumn === 'status' && sortDirection === 'asc' ? 'desc' : 'asc');
+                }}
+                style={{ cursor: 'pointer' }}
+                className="sortable-header"
+              >
+                <div className="d-flex align-items-center">
+                  Status
+                  <span className="ms-2">{renderSortIcon('status')}</span>
+                </div>
+              </th>
+
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentItems.length > 0 ? (
+              currentItems.map((record) => (
+                <tr key={record.incident_id}>
+                  <td>{record.employee_no}</td>
+                  <td>{record.employee_name}</td>
+                  <td>{record.incident_category}</td>
+                  <td>{record.incident_type}</td>
+                  <td>{formatDate(record.incident_date)} {record.incident_time}</td>
+                  <td className="text-truncate" style={{maxWidth: '200px'}} title={record.description}>
+                    {record.description.length > 50 ? `${record.description.substring(0, 50)}...` : record.description}
+                  </td>
+                  
+                  <td>
+                    {[
+                      record.attachment1_path && (
+                        <a 
+                          key="1"
+                          href={record.attachment1_path} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline-primary me-1"
+                        >
+                          <i className="fas fa-file-alt"></i> 1
+                        </a>
+                      ),
+                      record.attachment2_path && (
+                        <a 
+                          key="2"
+                          href={record.attachment2_path} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline-primary me-1"
+                        >
+                          <i className="fas fa-file-alt"></i> 2
+                        </a>
+                      ),
+                      record.attachment3_path && (
+                        <a 
+                          key="3"
+                          href={record.attachment3_path} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-outline-primary"
+                        >
+                          <i className="fas fa-file-alt"></i> 3
+                        </a>
+                      )
+                    ].filter(Boolean)}
+                    {!record.attachment1_path && !record.attachment2_path && !record.attachment3_path && 
+                      <span>No attachments</span>
+                    }
+                  </td>
+                  <td>
+                    <span className={`badge bg-${getSeverityColor(record.severity)}`}>
+                      {record.severity}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`badge bg-${getStatusColor(record.status)}`}>
+                      {record.status}
+                    </span>
+                  </td>
+                  <td>
+                    <button 
+                      className="btn btn-primary btn-sm me-2" 
+                      onClick={() => handleEditClick(record)}
+                    >
+                      Edit
+                    </button>
+                    {userRole === "Super Admin" && (
+                      <button 
+                        className="btn btn-danger btn-sm" 
+                        onClick={() => handleDeleteClick(record)}
                       >
-                        <div className="d-flex align-items-center">
-                          Employee No.
-                          <span className="ms-2">
-                            {renderSortIcon('employeeNo')}
-                          </span>
-                        </div>
-                      </th>
-
-                      <th 
-                        onClick={() => {
-                          setSortColumn('employeeName');
-                          setSortDirection(sortColumn === 'employeeName' && sortDirection === 'asc' ? 'desc' : 'asc');
-                        }}
-                        style={{ cursor: 'pointer' }}
-                        className="sortable-header"
-                      >
-                        <div className="d-flex align-items-center">
-                          Employee Name
-                          <span className="ms-2">
-                            {renderSortIcon('employeeName')}
-                          </span>
-                        </div>
-                      </th>
-
-                      <th 
-                        onClick={() => {
-                          setSortColumn('type');
-                          setSortDirection(sortColumn === 'type' && sortDirection === 'asc' ? 'desc' : 'asc');
-                        }}
-                        style={{ cursor: 'pointer' }}
-                        className="sortable-header"
-                      >
-                        <div className="d-flex align-items-center">
-                          Type
-                          <span className="ms-2">
-                            {renderSortIcon('type')}
-                          </span>
-                        </div>
-                      </th>
-
-                      <th 
-                        onClick={() => {
-                          setSortColumn('dateIssued');
-                          setSortDirection(sortColumn === 'dateIssued' && sortDirection === 'asc' ? 'desc' : 'asc');
-                        }}
-                        style={{ cursor: 'pointer' }}
-                        className="sortable-header"
-                      >
-                        <div className="d-flex align-items-center">
-                          Date Issued
-                          <span className="ms-2">
-                            {renderSortIcon('dateIssued')}
-                          </span>
-                        </div>
-                      </th>
-
-                      <th>Details</th>
-                      
-                      <th>Attachment</th>
-
-                      <th 
-                        onClick={() => {
-                          setSortColumn('status');
-                          setSortDirection(sortColumn === 'status' && sortDirection === 'asc' ? 'desc' : 'asc');
-                        }}
-                        style={{ cursor: 'pointer' }}
-                        className="sortable-header"
-                      >
-                        <div className="d-flex align-items-center">
-                          Status
-                          <span className="ms-2">
-                            {renderSortIcon('status')}
-                          </span>
-                        </div>
-                      </th>
-
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentItems.length > 0 ? (
-                      currentItems.map((record) => (
-                        <tr key={record.recordID}>
-                          <td>{record.employeeNo}</td>
-                          <td>{getEmployeeName(record.employeeNo)}</td>
-                          <td>{record.type}</td>
-                          <td>{formatDate(record.dateIssued)}</td>
-                          <td className="text-truncate" style={{maxWidth: '200px'}} title={record.details}>
-                            {record.details.length > 50 ? `${record.details.substring(0, 50)}...` : record.details}
-                          </td>
-                          <td>
-                            {record.attachment && record.attachment !== 'N/A' ? (
-                              <a 
-                                href={record.attachment} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-primary"
-                                title="View Attachment"
-                              >
-                                <i className="fas fa-file-alt"></i> View
-                              </a>
-                            ) : (
-                              <span title="No attachment available">No Attachment</span>
-                            )}
-                          </td>
-
-                          <td>
-                            <span className={`status-badge ${record.status?.toLowerCase()}`}>
-                              {record.status}
-                            </span>
-                          </td>
-                          <td>
-                            <button 
-                              className="btn btn-primary btn-sm me-2" 
-                              onClick={() => handleEditClick(record)}
-                            >
-                              Edit
-                            </button>
-                            {userRole === "Super Admin" && (
-                              <button 
-                                className="btn btn-danger btn-sm" 
-                                onClick={() => handleDeleteClick(record)}
-                              >
-                                Delete
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" className="text-center">
-                          No records found
-                        </td>
-                      </tr>
+                        Delete
+                      </button>
                     )}
-                  </tbody>
-                </table>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="12" className="text-center">
+                  No incident reports found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
               )}
             </div>
 
@@ -573,15 +639,16 @@ const Record = () => {
 
       {/* Render the EditRecordModal */}
       <EditRecordModal
-        show={showEditModal}
-        onHide={() => setShowEditModal(false)}
-        recordToEdit={selectedRecord}
-        employees={employees}
-        onRecordUpdated={() => {
-          // Refresh records list after update
-          setRecords([]);
-        }}
-      />
+      show={showEditModal}
+      onHide={() => setShowEditModal(false)}
+      incident={selectedRecord}  // Changed from recordToEdit to incident
+      employees={employees}
+      onIncidentUpdated={() => {
+        // Refresh records list after update
+        setRecords([]);
+        setShowEditModal(false);  // Add this to close modal after update
+      }}
+    />
 
       {/* Render the DeleteRecordModal */}
       <DeleteRecordModal
