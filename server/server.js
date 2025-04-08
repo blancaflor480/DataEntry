@@ -129,32 +129,9 @@ async function uploadEmployeeFile(file, employeeNo, lastName, fileType, dateIssu
 // Add this function after your existing upload functions
 async function uploadIncidentAttachment(file, employeeNo, lastName) {
   try {
-    // Get or create employee folder
-    const folderName = `Employee_${lastName}_${employeeNo}`;
+    // Get or create employee folder - reuse existing function
+    const employeeFolderId = await getOrCreateEmployeeFolder(employeeNo, lastName);
     
-    // Check if folder exists
-    const { data: { files } } = await drive.files.list({
-      q: `'${DRIVE_RECORDS_FOLDER_ID}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder'`,
-      fields: 'files(id, name)'
-    });
-
-    let folderId;
-    if (files.length > 0) {
-      folderId = files[0].id;
-    } else {
-      // Create new folder
-      const folderMetadata = {
-        name: folderName,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [DRIVE_RECORDS_FOLDER_ID]
-      };
-      const { data: folder } = await drive.files.create({
-        resource: folderMetadata,
-        fields: 'id'
-      });
-      folderId = folder.id;
-    }
-
     // Upload file
     const fileExt = path.extname(file.originalname);
     const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
@@ -162,7 +139,7 @@ async function uploadIncidentAttachment(file, employeeNo, lastName) {
 
     const fileMetadata = {
       name: fileName,
-      parents: [folderId]
+      parents: [employeeFolderId]
     };
 
     const media = {
@@ -186,7 +163,7 @@ async function uploadIncidentAttachment(file, employeeNo, lastName) {
     });
 
     const fileUrl = `https://drive.google.com/uc?export=view&id=${response.data.id}`;
-    fs.unlinkSync(file.path);
+    fs.unlinkSync(file.path); // Clean up temp file
 
     return {
       path: fileUrl,
@@ -197,6 +174,7 @@ async function uploadIncidentAttachment(file, employeeNo, lastName) {
     throw error;
   }
 }
+
 // Add this middleware before your routes
 app.use(async (req, res, next) => {
   try {
