@@ -220,7 +220,7 @@ const deptHeadSearchRef = useRef(null);
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Employee *</Form.Label>
+            <Form.Label>Name Person Involed (Employee) *</Form.Label>
             <div className="search-container">
               <Form.Control
                 type="text"
@@ -401,7 +401,7 @@ const deptHeadSearchRef = useRef(null);
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Name Person Involed</Form.Label>
+            <Form.Label>Witness</Form.Label>
             <Form.Control
               type="text"
               name="witnesses"

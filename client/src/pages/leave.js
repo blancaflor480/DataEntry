@@ -5,6 +5,7 @@ import "../style/record.css";
 import { auth } from "../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import AddLeaveModal from "../modal/addleave";
+import ProcessLeaveModal from "../modal/processleavemodal";
 //import EditLeaveModal from "../modal/editleave";
 //import DeleteLeaveModal from "../modal/deleteleave";
 import { db } from "../firebase";
@@ -32,6 +33,7 @@ const Leave = () => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertVariant, setAlertVariant] = useState("success");
+  const [showProcessModal, setShowProcessModal] = useState(false);
   const navigate = useNavigate();
   
   // New state for sorting
@@ -126,11 +128,16 @@ const Leave = () => {
 
     fetchLeaves();
     fetchEmployees();
-  }, [showAddModal, showEditModal]);
+  }, [showAddModal, showProcessModal]);
 
   const handleDeleteClick = (leave) => {
     setSelectedLeave(leave);
     setShowDeleteModal(true);
+  };
+
+  const handleProcessClick = (leave) => {
+    setSelectedLeave(leave);
+    setShowProcessModal(true);
   };
 
   const handleDeleteSuccess = (deletedLeaveId, error = null) => {
@@ -325,12 +332,14 @@ const Leave = () => {
                   className="form-select"
                 >
                   <option value="All">All</option>
-                  <option value="Vacation">Vacation</option>
-                  <option value="Sick">Sick</option>
-                  <option value="Emergency">Emergency</option>
-                  <option value="Maternity">Maternity</option>
-                  <option value="Paternity">Paternity</option>
-                  <option value="Bereavement">Bereavement</option>
+                  <option value="Vacation Leave (VL)">Vacation Leave (VL)</option>
+                  <option value="Sick Leave (SL)">Sick Leave (SL)</option>
+                  <option value="Emergency Leave (EL)">Emergency Leave (EL)</option>
+                  <option value="Maternity Leave">Maternity Leave</option>
+                  <option value="Parental Leave">Parental Leave</option>
+                  <option value="Bereavement Leave">Bereavement Leave</option>
+                  <option value="Birthday Leave">Birthday Leave</option>
+                  <option value="Other">Other</option>
                 </select>
                 
                 <label htmlFor="status-filter" className="ms-3 me-2">
@@ -486,7 +495,7 @@ const Leave = () => {
                       
                       <th>Days</th>
                       
-                      <th>Reason</th>
+                      
                       
                       <th>Leave Form</th>
                       
@@ -505,11 +514,7 @@ const Leave = () => {
                           </span>
                         </div>
                       </th>
-                      
                       <th>Approved By</th>
-                      
-                      <th>Remarks</th>
-                      
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -524,9 +529,7 @@ const Leave = () => {
                           <td>{formatDate(leave.start_date)}</td>
                           <td>{formatDate(leave.end_date)}</td>
                           <td>{calculateDays(leave.start_date, leave.end_date)}</td>
-                          <td className="text-truncate" style={{maxWidth: '200px'}} title={leave.reason}>
-                            {leave.reason?.length > 50 ? `${leave.reason.substring(0, 50)}...` : leave.reason}
-                          </td>
+                        
                           <td>
                             {leave.leave_form && leave.leave_form !== 'N/A' ? (
                               <a 
@@ -548,20 +551,20 @@ const Leave = () => {
                             </span>
                           </td>
                           <td>{leave.approved_by || 'N/A'}</td>
-                          <td>{leave.remarks || 'N/A'}</td>
                           <td>
                             <button 
-                              className="btn btn-primary btn-sm me-2" 
-                              onClick={() => handleEditClick(leave)}
-                            >
-                              Edit
-                            </button>
-                            <button 
-                              className="btn btn-danger btn-sm" 
-                              onClick={() => handleDeleteClick(leave)}
-                            >
-                              Delete
-                            </button>
+                            className="btn btn-primary btn-sm me-2" 
+                            onClick={() => handleProcessClick(leave)}
+                            disabled={leave.status !== "Pending for Approval"}
+                          >
+                            Process
+                          </button>
+                          <button 
+                            className="btn btn-danger btn-sm" 
+                            onClick={() => handleDeleteClick(leave)}
+                          >
+                            Delete
+                          </button>
                           </td>
                         </tr>
                       ))
@@ -618,7 +621,32 @@ const Leave = () => {
           setShowAddModal(false);
         }}  
       />
-
+<ProcessLeaveModal
+  show={showProcessModal}
+  onHide={() => setShowProcessModal(false)}
+  leave={selectedLeave}
+  employees={employees}
+  onLeaveProcessed={() => {
+    // Refresh the leaves list
+    const fetchLeaves = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/v1/leaves');
+        setLeaves(Array.isArray(response.data) ? response.data : []);
+      } catch (error) {
+        console.error("Error fetching leave records:", error);
+        setLeaves([]);
+      }
+    };
+    fetchLeaves();
+    setShowProcessModal(false);
+    setSelectedLeave(null);
+    // Show success message
+    setAlertMessage("Leave processed successfully!");
+    setAlertVariant("success");
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 3000);
+  }}
+/>
     </div>
   );
 };

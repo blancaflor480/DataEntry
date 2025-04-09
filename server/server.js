@@ -1837,9 +1837,10 @@ app.post(`${API_BASE}/leaves`, upload.single('leave_form'), async (req, res) => 
   }
 });
 
-app.put('/leaves/:id', upload.single('leave_form'), async (req, res) => {
+// Add or update this route
+app.put('/api/v1/leaves/:id', async (req, res) => {
   try {
-    const success = await leaveEmployee.updateLeave(req.params.id, req.body, req.file);
+    const success = await leaveEmployee.updateLeave(req.params.id, req.body);
     if (success) {
       res.status(200).json({ message: "Leave updated successfully" });
     } else {
@@ -1848,6 +1849,20 @@ app.put('/leaves/:id', upload.single('leave_form'), async (req, res) => {
   } catch (error) {
     console.error("Error updating leave:", error);
     res.status(500).json({ error: error.message || "Failed to update leave" });
+  }
+});
+
+app.put('/api/v1/leaves/:id/process', async (req, res) => {
+  try {
+    const success = await leaveEmployee.processLeave(req.params.id, req.body);
+    if (success) {
+      res.status(200).json({ message: "Leave processed successfully" });
+    } else {
+      res.status(404).json({ error: "Leave not found" });
+    }
+  } catch (error) {
+    console.error("Error processing leave:", error);
+    res.status(500).json({ error: error.message || "Failed to process leave" });
   }
 });
 

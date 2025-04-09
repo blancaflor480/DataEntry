@@ -331,9 +331,6 @@ const Record = () => {
                 <option value="All">All Categories</option>
                 <option value="Employee Behavior">Employee Behavior</option>
                 <option value="Misconduct & Violation">Misconduct & Violation</option>
-                <option value="Workplace Accident">Workplace Accident</option>
-                <option value="Policy Violation">Policy Violation</option>
-                <option value="Other">Other</option>
               </select>
                 
                 <label htmlFor="status-filter" className="ms-3 me-2">

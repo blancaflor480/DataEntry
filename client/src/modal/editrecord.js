@@ -243,7 +243,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
           </Form.Group>
           
           <Form.Group className="mb-3">
-            <Form.Label>Employee *</Form.Label>
+            <Form.Label>Name Person Involed (Employee) *</Form.Label>
             <div className="search-container" ref={searchRef}>
               <Form.Control
                 type="text"
@@ -420,7 +420,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
           </Form.Group>
           
           <Form.Group className="mb-3">
-            <Form.Label>Name Person Involved</Form.Label>
+            <Form.Label>Witness</Form.Label>
             <Form.Control
               type="text"
               name="witnesses"

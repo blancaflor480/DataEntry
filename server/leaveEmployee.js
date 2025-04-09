@@ -248,51 +248,167 @@ const createLeave = async (leaveData, file) => {
   }
 };
 
+// Update the updateLeave function
 const updateLeave = async (leaveId, leaveData, file) => {
-  const { employee_no, leave_type, start_date, end_date, reason, status, approved_by, remarks } = leaveData;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-  // Get existing leave
-  const [leave] = await pool.query(
-    'SELECT * FROM employee_leave WHERE leave_id = ?',
-    [leaveId]
-  );
-  
-  if (!leave.length) throw new Error("Leave not found");
+    let leaveFormUrl = null;
+    if (file) {
+      // Get employee details for the folder name
+      const [leave] = await connection.query(
+        'SELECT el.*, e.lastName FROM employee_leave el JOIN employees e ON el.employee_no = e.employeeNo WHERE el.leave_id = ?',
+        [leaveId]
+      );
 
-  // Get employee details
-  const [employee] = await pool.query(
-    'SELECT lastName FROM employees WHERE employeeNo = ?',
-    [employee_no]
-  );
+      if (leave.length > 0) {
+        const folderId = await getOrCreateLeaveFolder(leave[0].employee_no, leave[0].lastName);
+        const fileExt = path.extname(file.originalname);
+        const fileName = `Leave_${leave[0].lastName}_${format(new Date(), 'yyyy-MM-dd')}${fileExt}`;
+        leaveFormUrl = await uploadLeaveFile(file, fileName, folderId);
+      }
+    }
 
-  if (!employee.length) throw new Error("Employee not found");
+    // Update database
+    const [result] = await connection.query(
+      `UPDATE employee_leave SET 
+        start_date = ?,
+        end_date = ?,
+        leave_type = ?,
+        leave_form = COALESCE(?, leave_form)
+      WHERE leave_id = ?`,
+      [
+        leaveData.start_date,
+        leaveData.end_date,
+        leaveData.leave_type,
+        leaveFormUrl,
+        leaveId
+      ]
+    );
 
-  let leaveFormUrl = leave[0].leave_form;
-  
-  // Handle new file upload
-  if (file) {
-    const folderId = await getOrCreateLeaveFolder(employee_no, employee[0].lastName);
-    const fileExt = path.extname(file.originalname);
-    const fileName = `Leave_${employee[0].lastName}_${format(new Date(), 'yyyy-MM-dd')}${fileExt}`;
-    leaveFormUrl = await uploadLeaveFile(file, fileName, folderId);
+    // Get updated leave data for Google Sheets
+    const [updatedLeave] = await connection.query(
+      `SELECT el.*, 
+              CONCAT(e.firstName, ' ', e.lastName) as employee_name
+       FROM employee_leave el
+       JOIN employees e ON el.employee_no = e.employeeNo
+       WHERE el.leave_id = ?`,
+      [leaveId]
+    );
+
+    if (updatedLeave.length > 0) {
+      await updateLeaveInSheet(updatedLeave[0], updatedLeave[0].employee_name);
+    }
+
+    await connection.commit();
+    return result.affectedRows > 0;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
+};
+// Add this function
+const updateLeaveInSheet = async (leaveData, employeeName) => {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${LEAVES_SHEET_NAME}!A:M`
+    });
 
-  // Update database
-  const [result] = await pool.query(
-    `UPDATE employee_leave SET 
-      employee_no = ?, leave_type = ?, start_date = ?, 
-      end_date = ?, reason = ?, leave_form = ?,
-      status = ?, approved_by = ?, remarks = ?
-    WHERE leave_id = ?`,
-    [
-      employee_no, leave_type, start_date, 
-      end_date, reason, leaveFormUrl || null,
-      status, approved_by || null, remarks || null,
-      leaveId
-    ]
-  );
-  
-  return result.affectedRows > 0;
+    const rows = response.data.values;
+    if (!rows || rows.length === 0) return;
+
+    const rowIndex = rows.findIndex((row) => 
+      row[0] === leaveData.leave_id.toString()
+    );
+
+    if (rowIndex === -1) {
+      // If not found, append as new row
+      return syncToGoogleSheets(leaveData, employeeName);
+    }
+
+    const days = calculateDays(leaveData.start_date, leaveData.end_date);
+
+    const updatedRow = [
+      leaveData.leave_id,
+      leaveData.employee_no,
+      employeeName,
+      leaveData.date_applied,
+      leaveData.leave_type,
+      leaveData.start_date,
+      leaveData.end_date,
+      days,
+      leaveData.reason,
+      leaveData.leave_form || 'N/A',
+      leaveData.status,
+      leaveData.approver_name || 'N/A',
+      leaveData.remarks || 'N/A'
+    ];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${LEAVES_SHEET_NAME}!A${rowIndex + 1}:M${rowIndex + 1}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [updatedRow] }
+    });
+  } catch (error) {
+    console.error('Error updating leave in sheet:', error);
+    throw error;
+  }
+};
+const processLeave = async (leaveId, processData) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Update the leave record
+    const [result] = await connection.query(
+      `UPDATE employee_leave SET 
+        status = ?,
+        approved_by = ?,
+        remarks = ?,
+        start_date = ?,
+        end_date = ?
+      WHERE leave_id = ?`,
+      [
+        processData.status,
+        processData.approved_by,
+        processData.remarks,
+        processData.start_date,
+        processData.end_date,
+        leaveId
+      ]
+    );
+
+    // Get the updated leave record with employee and approver details
+    const [updatedLeave] = await connection.query(
+      `SELECT el.*, 
+              CONCAT(e.firstName, ' ', e.lastName) as employee_name,
+              e.firstName, e.lastName,
+              CONCAT(a.firstName, ' ', a.lastName) as approver_name
+       FROM employee_leave el
+       JOIN employees e ON el.employee_no = e.employeeNo
+       LEFT JOIN employees a ON el.approved_by = a.employeeNo
+       WHERE el.leave_id = ?`,
+      [leaveId]
+    );
+
+    if (updatedLeave.length > 0) {
+      // Update Google Sheets
+      await updateLeaveInSheet(updatedLeave[0], updatedLeave[0].employee_name);
+    }
+
+    await connection.commit();
+    return result.affectedRows > 0;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
 
 const deleteLeave = async (leaveId) => {
@@ -306,8 +422,10 @@ const deleteLeave = async (leaveId) => {
 
 // Export all functions
 module.exports = {
+  
   getAllLeaves,
   createLeave,
   updateLeave,
+  processLeave,
   deleteLeave
 };
