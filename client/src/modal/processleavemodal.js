@@ -22,11 +22,20 @@ const ProcessLeaveModal = ({ show, onHide, leave, employees, onLeaveProcessed })
 
   useEffect(() => {
     if (leave) {
-      const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD format
-      };
+      
+        const formatDate = (dateString) => {
+          if (!dateString) return '';
+          try {
+            // Create date object and adjust for timezone
+            const date = new Date(dateString);
+            // Add timezone offset to get correct local date
+            date.setDate(date.getDate() + 1);
+            return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+          } catch (error) {
+            console.error('Date formatting error:', error);
+            return String(dateString).substring(0, 10); // Changed dateStr to dateString
+          }
+        };
   
       setFormData({
         ...leave,
@@ -35,12 +44,16 @@ const ProcessLeaveModal = ({ show, onHide, leave, employees, onLeaveProcessed })
         end_date: formatDate(leave.end_date),
         remarks: leave.remarks || "",
         approved_by: leave.approved_by || ""
+      
       });
-    }
+      
+      }
   }, [leave]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'date_applied') return; // Prevent changing date_applied
+  
     if (name === "approved_by") {
       const selectedEmployee = employees.find(emp => emp.employeeNo === value);
       setFormData(prev => ({
@@ -85,14 +98,19 @@ const handleFileChange = (e) => {
       }
   
       const formDataToSend = new FormData();
-      formDataToSend.append("start_date", formData.start_date);
+     
+      formDataToSend.append("start_date", formData.start_date);  
       formDataToSend.append("end_date", formData.end_date);
       formDataToSend.append("leave_type", formData.leave_type);
-      
+      formDataToSend.append("status", formData.status);
+
       if (selectedFile) {
         formDataToSend.append("leave_form", selectedFile);
       }
-    
+      console.log("Sending to server:", {
+        start_date: formData.start_date,
+        end_date: formData.end_date
+      });
       await axios.put(`http://localhost:5000/api/v1/leaves/${leave.leave_id}`, formDataToSend, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -210,7 +228,7 @@ const handleFileChange = (e) => {
                   type="date"
                   name="date_applied"
                   value={formData.date_applied || ''}
-                  disabled={!isEditing}
+                  disabled
                 />
               </Form.Group>
             </Col>

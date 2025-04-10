@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 08, 2025 at 09:45 AM
+-- Generation Time: Apr 10, 2025 at 02:54 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -47,6 +47,13 @@ CREATE TABLE `edit_approvals` (
   `rejectedAt` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `edit_approvals`
+--
+
+INSERT INTO `edit_approvals` (`id`, `employeeId`, `employeeName`, `employeeNo`, `field`, `oldValue`, `newValue`, `requestedBy`, `requestedByEmail`, `status`, `requestedAt`, `approvedBy`, `approvedByEmail`, `approvedAt`, `rejectedBy`, `rejectedByEmail`, `rejectedAt`) VALUES
+(1, 1, 'Jade Ryan  Blancaflor', '2021-0090', 'employmentType', 'Trainee/Intern', 'On Probationary', 'xgTUyrf8yFdIlXUoXS9sPdoKW9O2', 'blancaflor480@gmail.com', 'pending', '2025-04-08 07:54:12', NULL, NULL, NULL, NULL, NULL, NULL);
+
 -- --------------------------------------------------------
 
 --
@@ -89,6 +96,13 @@ CREATE TABLE `employees` (
   `profileImageUrl` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `employees`
+--
+
+INSERT INTO `employees` (`id`, `firstName`, `middleName`, `lastName`, `employeeNo`, `status`, `employmentType`, `position`, `dateHire`, `endDate`, `footSize`, `weight`, `height`, `personalContact`, `personalEmail`, `corporateEmail`, `birthday`, `address`, `startingRate`, `currentMonthlyRate`, `currentDailyRate`, `hoursRate`, `bdoAccount`, `sssNumber`, `pagIbigNumber`, `philhealthNumber`, `tinNumber`, `joiningContractUrl`, `probationContractUrl`, `regularContractUrl`, `createdAt`, `updatedAt`, `profileImageUrl`) VALUES
+(1, 'Jade Ryan ', 'Leba', 'Blancaflor', '2021-0001', 'Active', 'Trainee/Intern', 'IT Specialist', '2025-03-17', '2025-06-17', '9', '55', '5\'7', '0938 043 8403', 'blancaflor480@gmail.com', 'matlexsystem2k25@gmail.com', '2002-08-17', 'Brgy. Kaingin, Tramo Street, Bacoor City, Cavite', 100.00, 3500.00, 100.00, 20.00, '1111-1111-1111', '11-1111111-1', '1111-1111-1111', '11-111111111-1', '111-111-111-111', 'https://drive.google.com/uc?export=view&id=1U-Y8xln2pGPKF4i9VLBYf5rsGtiZq6c0', 'https://drive.google.com/uc?export=view&id=1XmWIHoIg4fqpM1BmBipn93lw8qG-Uhc0', 'https://drive.google.com/uc?export=view&id=1EWcAXypmHoAZzNwimA491Iz-eiBhroDt', '2025-04-08 08:11:26', '2025-04-08 08:11:26', 'https://drive.google.com/uc?export=view&id=1_KKz_AbOydP8In3D1W4AyUh1bR2on__1');
+
 -- --------------------------------------------------------
 
 --
@@ -99,7 +113,7 @@ CREATE TABLE `employee_leave` (
   `leave_id` int(11) NOT NULL,
   `employee_no` varchar(20) NOT NULL,
   `date_applied` date NOT NULL,
-  `leave_type` enum('Vacation','Sick','Emergency','Maternity','Paternity','Bereavement','Other') NOT NULL,
+  `leave_type` enum('Vacation Leave (VL)','Sick Leave (SL)','Emergency Leave (EL)','Maternity Leave','Parental Leave','Bereavement Leave','Birthday Leave','Other') NOT NULL,
   `start_date` date NOT NULL,
   `end_date` date NOT NULL,
   `reason` text DEFAULT NULL,
@@ -108,8 +122,17 @@ CREATE TABLE `employee_leave` (
   `approved_by` varchar(50) DEFAULT NULL,
   `remarks` text DEFAULT NULL,
   `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `processed_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `employee_leave`
+--
+
+INSERT INTO `employee_leave` (`leave_id`, `employee_no`, `date_applied`, `leave_type`, `start_date`, `end_date`, `reason`, `leave_form`, `status`, `approved_by`, `remarks`, `createdAt`, `updatedAt`, `processed_at`) VALUES
+(1, '2021-0001', '2025-04-10', 'Sick Leave (SL)', '2025-04-11', '2025-04-15', '', 'https://drive.google.com/uc?export=view&id=1wClwEf-H9McDsLrmI48Aa6kdtX7PDbmK', 'Pending for Approval', NULL, NULL, '2025-04-10 00:49:41', '2025-04-10 00:49:41', NULL),
+(2, '2021-0001', '2025-04-10', 'Vacation Leave (VL)', '2025-04-12', '2025-04-25', '', 'https://drive.google.com/uc?export=view&id=1BcasM4oNaIN8H-2WjCPTDQaEi4cuP8Ry', 'Pending for Approval', NULL, NULL, '2025-04-10 00:50:14', '2025-04-10 00:50:14', NULL);
 
 -- --------------------------------------------------------
 
@@ -163,6 +186,13 @@ CREATE TABLE `incident_reports` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Dumping data for table `incident_reports`
+--
+
+INSERT INTO `incident_reports` (`incident_id`, `reported_by`, `employee_no`, `department_head`, `incident_category`, `incident_type`, `incident_date`, `incident_time`, `report_date`, `department`, `location`, `description`, `resolution_details`, `witnesses`, `attachment1_path`, `attachment1_name`, `attachment2_path`, `attachment2_name`, `attachment3_path`, `attachment3_name`, `status`, `severity`, `reviewed_by`, `review_date`, `created_at`, `updated_at`) VALUES
+(1, '2021-0001', '2021-0001', '2021-0001', 'Misconduct & Violation', 'Dishonesty', '2025-04-09', '05:47:00', '2025-04-10 05:48:09', 'Sales Department', 'Matlex', 'aaa', '', 'aa', 'https://drive.google.com/uc?export=view&id=1ZnkTCKzsmc3LXaPeDF8J-R5ext5Yx1km', 'IR_Blancaflor_2021-0001_20250409T214806.pdf', NULL, NULL, NULL, NULL, 'Open', 'Medium', NULL, NULL, '2025-04-09 21:48:09', '2025-04-09 21:48:09');
+
+--
 -- Indexes for dumped tables
 --
 
@@ -188,7 +218,8 @@ ALTER TABLE `employee_leave`
   ADD PRIMARY KEY (`leave_id`),
   ADD KEY `idx_employee_leave_employee` (`employee_no`),
   ADD KEY `idx_employee_leave_status` (`status`),
-  ADD KEY `idx_employee_leave_dates` (`start_date`,`end_date`);
+  ADD KEY `idx_employee_leave_dates` (`start_date`,`end_date`),
+  ADD KEY `employee_approved_by_fk` (`approved_by`);
 
 --
 -- Indexes for table `employee_records`
@@ -214,19 +245,19 @@ ALTER TABLE `incident_reports`
 -- AUTO_INCREMENT for table `edit_approvals`
 --
 ALTER TABLE `edit_approvals`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `employees`
 --
 ALTER TABLE `employees`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `employee_leave`
 --
 ALTER TABLE `employee_leave`
-  MODIFY `leave_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `leave_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `employee_records`
@@ -238,7 +269,7 @@ ALTER TABLE `employee_records`
 -- AUTO_INCREMENT for table `incident_reports`
 --
 ALTER TABLE `incident_reports`
-  MODIFY `incident_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `incident_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Constraints for dumped tables
@@ -255,6 +286,7 @@ ALTER TABLE `edit_approvals`
 -- Constraints for table `employee_leave`
 --
 ALTER TABLE `employee_leave`
+  ADD CONSTRAINT `employee_approved_by_fk` FOREIGN KEY (`approved_by`) REFERENCES `employees` (`employeeNo`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `employee_leave_ibfk_1` FOREIGN KEY (`employee_no`) REFERENCES `employees` (`employeeNo`) ON DELETE CASCADE;
 
 --

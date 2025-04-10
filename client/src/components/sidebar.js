@@ -68,14 +68,6 @@ const Sidebar = ({ isSidebarOpen, userRole }) => {
                 </div>
               </Link>
             </li>
-            <li>
-              <Link to="/absent">
-                <div className="menu-label">
-                  <i className="fas fa-calendar-times"></i>
-                  <span>Absent Record</span>
-                </div>
-              </Link>
-            </li>
           </ul>
         </li>
         <li>

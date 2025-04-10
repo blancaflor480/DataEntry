@@ -1838,9 +1838,10 @@ app.post(`${API_BASE}/leaves`, upload.single('leave_form'), async (req, res) => 
 });
 
 // Add or update this route
-app.put('/api/v1/leaves/:id', async (req, res) => {
+// Update the PUT endpoint for leaves
+app.put('/api/v1/leaves/:id', upload.single('leave_form'), async (req, res) => {
   try {
-    const success = await leaveEmployee.updateLeave(req.params.id, req.body);
+    const success = await leaveEmployee.updateLeave(req.params.id, req.body, req.file);
     if (success) {
       res.status(200).json({ message: "Leave updated successfully" });
     } else {

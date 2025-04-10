@@ -254,35 +254,41 @@ const updateLeave = async (leaveId, leaveData, file) => {
   try {
     await connection.beginTransaction();
 
-    let leaveFormUrl = null;
-    if (file) {
-      // Get employee details for the folder name
-      const [leave] = await connection.query(
-        'SELECT el.*, e.lastName FROM employee_leave el JOIN employees e ON el.employee_no = e.employeeNo WHERE el.leave_id = ?',
-        [leaveId]
-      );
+    // Get current leave data
+    const [currentLeave] = await connection.query(
+      'SELECT el.*, e.lastName FROM employee_leave el JOIN employees e ON el.employee_no = e.employeeNo WHERE el.leave_id = ?',
+      [leaveId]
+    );
 
-      if (leave.length > 0) {
-        const folderId = await getOrCreateLeaveFolder(leave[0].employee_no, leave[0].lastName);
-        const fileExt = path.extname(file.originalname);
-        const fileName = `Leave_${leave[0].lastName}_${format(new Date(), 'yyyy-MM-dd')}${fileExt}`;
-        leaveFormUrl = await uploadLeaveFile(file, fileName, folderId);
-      }
+    if (!currentLeave.length) {
+      throw new Error('Leave not found');
     }
 
-    // Update database
+    let leaveFormUrl = currentLeave[0].leave_form;
+    if (file) {
+      const folderId = await getOrCreateLeaveFolder(currentLeave[0].employee_no, currentLeave[0].lastName);
+      const fileExt = path.extname(file.originalname);
+      const fileName = `Leave_${currentLeave[0].lastName}_${format(new Date(), 'yyyy-MM-dd')}${fileExt}`;
+      leaveFormUrl = await uploadLeaveFile(file, fileName, folderId);
+    }
+
+    // Format dates for MySQL
+    
+    // Update database with all fields including leave_form
     const [result] = await connection.query(
       `UPDATE employee_leave SET 
         start_date = ?,
         end_date = ?,
         leave_type = ?,
-        leave_form = COALESCE(?, leave_form)
+        leave_form = ?,
+        status = ?
       WHERE leave_id = ?`,
       [
-        leaveData.start_date,
-        leaveData.end_date,
+        leaveData.start_date, // Use directly without formatting
+        leaveData.end_date,   // Use directly without formatting
         leaveData.leave_type,
         leaveFormUrl,
+        leaveData.status,
         leaveId
       ]
     );
