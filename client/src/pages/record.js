@@ -363,16 +363,16 @@ const Record = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <button className="btn btn-primary search-button">Search</button>
+              <button className="btn btn-primary search-button btn-sm">Search</button>
               <button
-                className="btn btn-success search-button"
+                className="btn btn-success search-button btn-sm"
                 onClick={() => setShowAddModal(true)}
               >
                 Add Record
               </button>
             
               <button
-                className="btn btn-warning search-button"
+                className="btn btn-warning search-button btn-sm"
                 onClick={() => navigate("/leave")} // This will navigate to the leave page
               >
                 Leave Record

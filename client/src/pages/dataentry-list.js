@@ -503,16 +503,16 @@ const totalPages = Math.ceil(sortedEmployees.length / itemsPerPage);
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <button className="btn btn-primary search-button">Search</button>
+              <button className="btn btn-primary search-button btn-sm">Search</button>
               <button
-                className="btn btn-success search-button"
+                className="btn btn-success search-button btn-sm"
                 onClick={() => setShowAddModal(true)}
               >
                 Add Account
               </button>
               
               <button
-                className="btn btn-danger search-button"
+                className="btn btn-danger search-button btn-sm"
                 onClick={() => setShowApprovalModal(true)}
               >
                 Approval
