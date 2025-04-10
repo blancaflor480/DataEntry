@@ -1881,6 +1881,226 @@ app.delete('/leaves/:id', async (req, res) => {
   }
 });
 
+// Add this endpoint in your server.js
+// Add these endpoints after your other leave-related routes
+// Add this endpoint after your other leave-related routes
+
+// Submit delete request
+app.post('/api/v1/leaves/delete-request', async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const {
+      leaveId,
+      reason,
+      requestedBy,
+      employeeNo,
+      leaveType,
+      startDate,
+      endDate
+    } = req.body;
+
+    // Insert the delete request
+    const [result] = await connection.query(
+      `INSERT INTO leave_delete_requests 
+       (leave_id, reason, requested_by, status, employee_no, leave_type, start_date, end_date) 
+       VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)`,
+      [leaveId, reason, requestedBy, employeeNo, leaveType, startDate, endDate]
+    );
+
+    await connection.commit();
+    res.status(201).json({
+      message: "Delete request submitted successfully",
+      requestId: result.insertId
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error submitting delete request:', error);
+    res.status(500).json({ error: 'Failed to submit delete request' });
+  } finally {
+    connection.release();
+  }
+});
+// Get pending delete requests
+app.get('/api/v1/leaves/delete-requests/pending', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT lr.*, 
+        CONCAT(e.firstName, ' ', e.lastName) as employee_name
+       FROM leave_delete_requests lr
+       JOIN employees e ON lr.employee_no = e.employeeNo
+       WHERE lr.status = 'pending'
+       ORDER BY lr.requested_at DESC`
+    );
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error("Error fetching pending delete requests:", error);
+    res.status(500).json({ error: "Failed to fetch pending delete requests" });
+  }
+});
+
+// Add this new endpoint for direct deletion
+app.delete('/api/v1/leaves/:id/direct-delete', async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Verify the user is Super Admin
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('Authentication required');
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    const userDoc = await db.collection('admin').doc(decodedToken.uid).get();
+    
+    if (!userDoc.exists || userDoc.data().role !== 'Super Admin') {
+      throw new Error('Unauthorized: Only Super Admin can perform direct deletion');
+    }
+
+    // Delete the leave record
+    const [result] = await connection.query(
+      'DELETE FROM employee_leave WHERE leave_id = ?',
+      [req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new Error('Leave record not found');
+    }
+
+    await connection.commit();
+    res.status(200).json({ message: 'Leave record deleted successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error deleting leave:', error);
+    res.status(error.message.includes('Unauthorized') ? 403 : 500)
+       .json({ error: error.message || 'Failed to delete leave' });
+  } finally {
+    connection.release();
+  }
+});
+// Get delete request history
+app.get('/api/v1/leaves/delete-requests/history', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT lr.*, 
+        CONCAT(e.firstName, ' ', e.lastName) as employee_name
+       FROM leave_delete_requests lr
+       JOIN employees e ON lr.employee_no = e.employeeNo
+       WHERE lr.status IN ('approved', 'rejected')
+       ORDER BY lr.processed_at DESC`
+    );
+
+    // Get processed_by names from Firestore
+    const processedRequests = await Promise.all(rows.map(async (request) => {
+      if (request.processed_by) {
+        // Extract email from processed_by
+        const processedByEmail = request.processed_by;
+        
+        // Query Firestore for user with this email
+        const usersRef = db.collection('admin');
+        const snapshot = await usersRef.where('email', '==', processedByEmail).get();
+        
+        if (!snapshot.empty) {
+          const userData = snapshot.docs[0].data();
+          request.processed_by = `${userData.firstName} ${userData.lastName}`;
+        }
+      }
+      return request;
+    }));
+
+    res.status(200).json(processedRequests);
+  } catch (error) {
+    console.error("Error fetching delete request history:", error);
+    res.status(500).json({ error: "Failed to fetch delete request history" });
+  }
+});
+
+// Approve delete request
+app.put('/api/v1/leaves/delete-requests/:requestId/approve', async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Get the delete request
+    const [requests] = await connection.query(
+      'SELECT * FROM leave_delete_requests WHERE request_id = ? AND status = "pending"',
+      [req.params.requestId]
+    );
+
+    if (requests.length === 0) {
+      throw new Error('Delete request not found or already processed');
+    }
+
+    const request = requests[0];
+
+    // Delete the leave record
+    await connection.query(
+      'DELETE FROM employee_leave WHERE leave_id = ?',
+      [request.leave_id]
+    );
+
+    // Get Firebase user's email
+    const decodedToken = await admin.auth().verifyIdToken(req.headers.authorization.split('Bearer ')[1]);
+    const userEmail = decodedToken.email;
+
+    // Update request status with full email
+    await connection.query(
+      `UPDATE leave_delete_requests 
+       SET status = 'approved',
+           processed_by = ?,
+           processed_at = NOW()
+       WHERE request_id = ?`,
+      [userEmail, req.params.requestId]
+    );
+
+    await connection.commit();
+    res.status(200).json({ message: 'Delete request approved and leave deleted successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error approving delete request:', error);
+    res.status(500).json({ error: error.message || 'Failed to approve delete request' });
+  } finally {
+    connection.release();
+  }
+});
+
+// Reject delete request
+app.put('/api/v1/leaves/delete-requests/:requestId/reject', async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Get Firebase user's email
+    const decodedToken = await admin.auth().verifyIdToken(req.headers.authorization.split('Bearer ')[1]);
+    const userEmail = decodedToken.email;
+
+    const [result] = await connection.query(
+      `UPDATE leave_delete_requests 
+       SET status = 'rejected',
+           processed_by = ?,
+           processed_at = NOW()
+       WHERE request_id = ? AND status = 'pending'`,
+      [userEmail, req.params.requestId]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new Error('Delete request not found or already processed');
+    }
+
+    await connection.commit();
+    res.status(200).json({ message: 'Delete request rejected successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error rejecting delete request:', error);
+    res.status(500).json({ error: error.message || 'Failed to reject delete request' });
+  } finally {
+    connection.release();
+  }
+});
+
 // Default route
 app.get("/", (req, res) => {
     res.send("Server is Running!");

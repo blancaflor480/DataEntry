@@ -3,14 +3,18 @@ import Sidebar from "../components/sidebar";
 import Header from "../components/header";
 import "../style/record.css";
 import { auth } from "../firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut,getAuth } from "firebase/auth";
 import AddLeaveModal from "../modal/addleave";
 import ProcessLeaveModal from "../modal/processleavemodal";
+import ViewLeaveModal from "../modal/viewleavemodal";
+import DeleteApprovalModal from "../modal/deleteapprovalleavemodal";
+import DeleteLeaveApprovalTableModal from "../modal/deleteapprovalleavesuperadmin";
 //import EditLeaveModal from "../modal/editleave";
 //import DeleteLeaveModal from "../modal/deleteleave";
 import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { Modal, Button } from 'react-bootstrap';
 import axios from 'axios';
 
 const Leave = () => {
@@ -23,8 +27,15 @@ const Leave = () => {
   const [currentPage, setCurrentPage] = useState(1); 
   const [itemsPerPage] = useState(10); 
   const [showAddModal, setShowAddModal] = useState(false); 
-  const [showEditModal, setShowEditModal] = useState(false); 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteApprovalModal, setShowDeleteApprovalModal] = useState(false);
+  const [showDeleteLeaveApprovalModal, setShowDeleteLeaveApprovalModal] = useState(false);  
+  const [pendingDelete, setPendingDelete] = useState([]); // Add this line
   const [selectedLeave, setSelectedLeave] = useState(null);
+  // Add this with your other state declarations
+const [showConfirmModal, setShowConfirmModal] = useState(false);
+const [leaveToDelete, setLeaveToDelete] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [users, setUsers] = useState([]); 
   const [leaves, setLeaves] = useState([]); 
@@ -130,10 +141,6 @@ const Leave = () => {
     fetchEmployees();
   }, [showAddModal, showProcessModal]);
 
-  const handleDeleteClick = (leave) => {
-    setSelectedLeave(leave);
-    setShowDeleteModal(true);
-  };
 
   const handleProcessClick = (leave) => {
     setSelectedLeave(leave);
@@ -157,6 +164,65 @@ const Leave = () => {
       setShowAlert(false);
     }, 3000);
   };
+
+  // Update the handleDeleteClick function
+  const handleDeleteClick = (leave) => {
+    if (userRole === "Super Admin") {
+      setLeaveToDelete(leave);
+      setShowConfirmModal(true);
+    } else {
+      setSelectedLeave(leave);
+      setShowDeleteApprovalModal(true);
+    }
+  };
+  
+  const handleConfirmDelete = async () => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        setAlertMessage("User not authenticated");
+        setAlertVariant("danger");
+        setShowAlert(true);
+        return;
+      }
+  
+      const idToken = await user.getIdToken(true);
+      
+      await axios.delete(
+        `http://localhost:5000/api/v1/leaves/${leaveToDelete.leave_id}/direct-delete`,
+        {
+          headers: {
+            'Authorization': `Bearer ${idToken}`
+          }
+        }
+      );
+  
+      setLeaves(prevLeaves => 
+        prevLeaves.filter(l => l.leave_id !== leaveToDelete.leave_id)
+      );
+  
+      setShowConfirmModal(false);
+      setLeaveToDelete(null);
+      
+      setAlertMessage("Leave record deleted successfully!");
+      setAlertVariant("success");
+      setShowAlert(true);
+      setTimeout(() => setShowAlert(false), 3000);
+  
+    } catch (error) {
+      console.error("Error deleting leave:", error);
+      setAlertMessage(error.response?.data?.error || "Failed to delete leave record");
+      setAlertVariant("danger");
+      setShowAlert(true);
+    }
+  };
+
+const handleTableApprovalClick = (leave) => {
+    // Other roles need to request deletion
+    setSelectedLeave(leave);
+    setShowDeleteLeaveApprovalModal(true);
+};
 
   // Get employee name by employeeNo
   const getEmployeeName = (employeeNo) => {
@@ -287,6 +353,11 @@ const Leave = () => {
     setShowEditModal(true);
   };
 
+  const handleViewClick = (leave) => {
+    setSelectedLeave(leave);
+    setShowViewModal(true);
+  };
+
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -361,7 +432,7 @@ const Leave = () => {
 
             {/* Search Bar and Button */}
             <div className="search-container mt-3">
-              <div className="col-sm-8">
+              <div className="col-sm-7">
                 <input
                   type="text"
                   className="form-control search-input"
@@ -370,15 +441,28 @@ const Leave = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <button className="btn btn-primary search-button">Search</button>
+              <button className="btn btn-primary search-button btn-sm">Search</button>
+              
               <button
-                className="btn btn-success search-button"
+                className="btn btn-danger search-button btn-sm"
+                onClick={() => setShowDeleteLeaveApprovalModal(true)} // Changed from setShowApprovalDeleteModal
+              >
+                Delete Approval
+                {pendingDelete.length > 0 && (
+                  <span className="badge rounded-pill bg-danger">
+                    {pendingDelete.length}
+                  </span>
+                )}
+              </button>
+              
+              <button
+                className="btn btn-success search-button btn-sm"
                 onClick={() => setShowAddModal(true)}
               >
                 Add Leave
               </button>
               <button
-                className="btn btn-warning search-button"
+                className="btn btn-warning search-button btn-sm"
                 onClick={() => navigate("/record")}
               >
                 Record List NTE and IR
@@ -494,11 +578,6 @@ const Leave = () => {
                       </th>
                       
                       <th>Days</th>
-                      
-                      
-                      
-                      <th>Leave Form</th>
-                      
                       <th 
                         onClick={() => {
                           setSortColumn('status');
@@ -529,43 +608,48 @@ const Leave = () => {
                           <td>{formatDate(leave.start_date)}</td>
                           <td>{formatDate(leave.end_date)}</td>
                           <td>{calculateDays(leave.start_date, leave.end_date)}</td>
-                        
                           <td>
-                            {leave.leave_form && leave.leave_form !== 'N/A' ? (
-                              <a 
-                                href={leave.leave_form} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-primary"
-                                title="View Leave Form"
-                              >
-                                <i className="fas fa-file-alt"></i> View
-                              </a>
-                            ) : (
-                              <span title="No leave form available">N/A</span>
-                            )}
-                          </td>
+                          <span className={`badge rounded-pill ${
+                            leave.status?.toLowerCase() === 'approved' ? 'bg-success' :
+                            leave.status?.toLowerCase() === 'rejected' ? 'bg-danger' :
+                            'bg-warning'
+                          }`}>
+                            {leave.status}
+                          </span>
+                        </td>
+                          <td>{leave.approved_by ? (
+                          <span className="badge rounded-pill bg-success">
+                            {getEmployeeName(leave.approved_by)}
+                          </span>
+                        ) : (
+                          <span className=" badge rounded-pill bg-secondary">N/A</span>
+                        )}</td>
                           <td>
-                            <span className={`status-badge ${leave.status?.toLowerCase()}`}>
-                              {leave.status}
-                            </span>
-                          </td>
-                          <td>{leave.approved_by || 'N/A'}</td>
-                          <td>
+                          <div className="d-flex justify-content-start gap-1"> {/* Added d-flex and gap-1 */}
                             <button 
-                            className="btn btn-primary btn-sm me-2" 
-                            onClick={() => handleProcessClick(leave)}
-                            disabled={leave.status !== "Pending for Approval"}
-                          >
-                            Process
-                          </button>
-                          <button 
-                            className="btn btn-danger btn-sm" 
-                            onClick={() => handleDeleteClick(leave)}
-                          >
-                            Delete
-                          </button>
-                          </td>
+                              className="btn btn-warning btn-sm py-0 px-2" // Added py-0 px-2 for smaller padding
+                              onClick={() => handleViewClick(leave)}
+                              style={{ fontSize: '0.8rem' }} // Added smaller font size
+                            >
+                              View
+                            </button>
+                            <button 
+                              className="btn btn-primary btn-sm py-0 px-2"
+                              onClick={() => handleProcessClick(leave)}
+                              disabled={leave.status !== "Pending for Approval"}
+                              style={{ fontSize: '0.8rem' }}
+                            >
+                              Process
+                            </button>
+                            <button 
+                              className="btn btn-danger btn-sm py-0 px-2"
+                              onClick={() => handleDeleteClick(leave)}
+                              style={{ fontSize: '0.8rem' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
                         </tr>
                       ))
                     ) : (
@@ -612,6 +696,65 @@ const Leave = () => {
       </div>
 
       {/* Render the AddLeaveModal */}
+      <DeleteLeaveApprovalTableModal
+  show={showDeleteLeaveApprovalModal} // Fixed from showViewModal
+  onHide={() => setShowDeleteLeaveApprovalModal(false)}
+  userRole={userRole}
+  onDeleteSuccess={() => {
+    // Refresh pending delete requests
+    const fetchPendingDeleteRequests = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/v1/leaves/delete-requests/pending');
+        setPendingDelete(response.data || []);
+      } catch (error) {
+        console.error("Error fetching pending delete requests:", error);
+        setPendingDelete([]);
+      }
+    };
+    fetchPendingDeleteRequests();
+  }}
+/>
+
+{/* Add this with your other modals */}
+<Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
+  <Modal.Header closeButton>
+    <Modal.Title>Confirm Delete</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <p>Are you sure you want to delete this leave record? This action cannot be undone.</p>
+    {leaveToDelete && (
+      <div className="mt-3">
+        <p className="mb-1"><strong>Employee:</strong> {getEmployeeName(leaveToDelete.employee_no)}</p>
+        <p className="mb-1"><strong>Leave Type:</strong> {leaveToDelete.leave_type}</p>
+        <p className="mb-1">
+          <strong>Period:</strong> {formatDate(leaveToDelete.start_date)} - {formatDate(leaveToDelete.end_date)}
+        </p>
+      </div>
+    )}
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+      Cancel
+    </Button>
+    <Button variant="danger" onClick={handleConfirmDelete}>
+      Delete
+    </Button>
+  </Modal.Footer>
+</Modal>
+<DeleteApprovalModal
+  show={showDeleteApprovalModal}
+  onHide={() => setShowDeleteApprovalModal(false)}
+  leave={selectedLeave}
+  userRole={userRole}
+  userEmail={userEmail} // Add this prop
+/>
+
+      <ViewLeaveModal
+  show={showViewModal}
+  onHide={() => setShowViewModal(false)}
+  leave={selectedLeave}
+  employees={employees}
+/>
       <AddLeaveModal
         show={showAddModal}
         onHide={() => setShowAddModal(false)}
@@ -621,6 +764,7 @@ const Leave = () => {
           setShowAddModal(false);
         }}  
       />
+
 <ProcessLeaveModal
   show={showProcessModal}
   onHide={() => setShowProcessModal(false)}
