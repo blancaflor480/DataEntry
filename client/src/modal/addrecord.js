@@ -17,7 +17,7 @@ const AddRecordModal = ({ show, onHide, employees, onRecordAdded }) => {
     description: '',
     witnesses: '',
     severity: 'Low',
-    status: 'Open',
+    status: 'Pending',
     attachments: []
   });
 
@@ -181,7 +181,7 @@ const deptHeadSearchRef = useRef(null);
           description: '',
           witnesses: '',
           severity: 'Low',
-          status: 'Open',
+          status: 'Pending',
           attachments: []
         });
         setSearchTerm('');
@@ -378,7 +378,7 @@ const deptHeadSearchRef = useRef(null);
            
 
           <Form.Group className="mb-3">
-            <Form.Label>Location *</Form.Label>
+            <Form.Label>Location of Incident *</Form.Label>
             <Form.Control
               type="text"
               name="location"
@@ -433,7 +433,7 @@ const deptHeadSearchRef = useRef(null);
               value={formData.status}
               onChange={handleChange}
             >
-              <option value="Open">Open</option>
+              <option value="Pending">Pending</option>
               <option value="Under Investigation">Under Investigation</option>
               <option value="Resolved">Resolved</option>
               <option value="Closed">Closed</option>

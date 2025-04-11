@@ -18,7 +18,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
     description: '',
     witnesses: '',
     severity: 'Low',
-    status: 'Open',
+    status: 'Pending',
     resolution_details: '',
     attachments: []
   });
@@ -32,8 +32,14 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
   const [deptHeadSearchTerm, setDeptHeadSearchTerm] = useState('');
   const [showDeptHeadDropdown, setShowDeptHeadDropdown] = useState(false);
   const [filteredDeptHeads, setFilteredDeptHeads] = useState([]);
+  const [processedBySearchTerm, setProcessedBySearchTerm] = useState('');
+  const [showProcessedByDropdown, setShowProcessedByDropdown] = useState(false);
+  const [filteredProcessedBy, setFilteredProcessedBy] = useState([]);
+  const processedBySearchRef = useRef(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const deptHeadSearchRef = useRef(null);
 
+  // Handle click outside for all dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -41,6 +47,9 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
       }
       if (deptHeadSearchRef.current && !deptHeadSearchRef.current.contains(event.target)) {
         setShowDeptHeadDropdown(false);
+      }
+      if (processedBySearchRef.current && !processedBySearchRef.current.contains(event.target)) {
+        setShowProcessedByDropdown(false);
       }
     };
 
@@ -50,6 +59,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
     };
   }, []);
 
+  // Filter employees for main search
   useEffect(() => {
     if (searchTerm && !formData.employee_no) {
       const filtered = employees.filter(emp => 
@@ -63,10 +73,40 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
     }
   }, [searchTerm, employees, formData.employee_no]);
 
+  // Filter department heads
+  useEffect(() => {
+    if (deptHeadSearchTerm && !formData.department_head) {
+      const filtered = employees.filter(emp => 
+        emp.employeeNo.toLowerCase().includes(deptHeadSearchTerm.toLowerCase()) ||
+        `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(deptHeadSearchTerm.toLowerCase())
+      );
+      setFilteredDeptHeads(filtered);
+      setShowDeptHeadDropdown(true);
+    } else {
+      setShowDeptHeadDropdown(false);
+    }
+  }, [deptHeadSearchTerm, employees, formData.department_head]);
+
+  // Filter processed by employees
+  useEffect(() => {
+    if (processedBySearchTerm && !formData.processed_by) {
+      const filtered = employees.filter(emp => 
+        emp.employeeNo.toLowerCase().includes(processedBySearchTerm.toLowerCase()) ||
+        `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(processedBySearchTerm.toLowerCase())
+      );
+      setFilteredProcessedBy(filtered);
+      setShowProcessedByDropdown(true);
+    } else {
+      setShowProcessedByDropdown(false);
+    }
+  }, [processedBySearchTerm, employees, formData.processed_by]);
+
+  // Initialize form with incident data
   useEffect(() => {
     if (incident) {
       const employee = employees.find(emp => emp.employeeNo === incident.employee_no);
       const deptHead = employees.find(emp => emp.employeeNo === incident.department_head);
+      const processedBy = employees.find(emp => emp.employeeNo === incident.processed_by);
 
       setFormData({
         reported_by: incident.reported_by || '',
@@ -81,9 +121,16 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
         description: incident.description || '',
         witnesses: incident.witnesses || '',
         severity: incident.severity || 'Low',
-        status: incident.status || 'Open',
+        status: incident.status || 'Pending',
         resolution_details: incident.resolution_details || '',
-        attachments: []
+        attachments: [],
+        nte_status: incident.nte_status || '',
+        nte_date_issued: incident.nte_date_issued?.split('T')[0] || '',
+        nte_attachment: null,
+        nte_attachment_path: incident.nte_attachment_path || '',
+        processed_by: incident.processed_by || '',
+        process_date: incident.process_date?.split('T')[0] || '',
+        isEditing: false
       });
 
       if (employee) {
@@ -91,6 +138,9 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
       }
       if (deptHead) {
         setDeptHeadSearchTerm(`${deptHead.employeeNo} - ${deptHead.firstName} ${deptHead.lastName}`);
+      }
+      if (processedBy) {
+        setProcessedBySearchTerm(`${processedBy.employeeNo} - ${processedBy.firstName} ${processedBy.lastName}`);
       }
       setErrors({});
     }
@@ -119,6 +169,16 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
         ];
       default:
         return [];
+    }
+  };
+
+  const handleNTEFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData(prev => ({
+        ...prev,
+        nte_attachment: file
+      }));
     }
   };
 
@@ -160,42 +220,57 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
     setShowDeptHeadDropdown(false);
   };
 
-  useEffect(() => {
-    if (deptHeadSearchTerm && !formData.department_head) {
-      const filtered = employees.filter(emp => 
-        emp.employeeNo.toLowerCase().includes(deptHeadSearchTerm.toLowerCase()) ||
-        `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(deptHeadSearchTerm.toLowerCase())
-      );
-      setFilteredDeptHeads(filtered);
-      setShowDeptHeadDropdown(true);
-    } else {
-      setShowDeptHeadDropdown(false);
-    }
-  }, [deptHeadSearchTerm, employees, formData.department_head]);
+  const handleProcessedBySelect = (employee) => {
+    setFormData(prev => ({
+      ...prev,
+      processed_by: employee.employeeNo
+    }));
+    setProcessedBySearchTerm(`${employee.employeeNo} - ${employee.firstName} ${employee.lastName}`);
+    setShowProcessedByDropdown(false);
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
     setError('');
     setSuccess('');
-
+  
     try {
       const formDataToSend = new FormData();
       
-      // Append all form fields
+      // Append all form fields except attachments and isEditing
       Object.keys(formData).forEach(key => {
-        if (key !== 'attachments') {
+        if (key !== 'attachments' && key !== 'isEditing' && key !== 'nte_attachment') {
           formDataToSend.append(key, formData[key]);
         }
       });
-
-      // Append new attachments if any
-      if (formData.attachments.length > 0) {
+  
+      // Append new incident attachments if any
+      if (formData.attachments?.length > 0) {
         formData.attachments.forEach(file => {
           formDataToSend.append('attachments', file);
         });
       }
-
-      await axios.put(
+  
+      // Append NTE attachment if any
+      if (formData.nte_attachment) {
+        formDataToSend.append('nte_attachment', formData.nte_attachment);
+      }
+  
+      // Check if processing
+      const isProcessing = formData.status === 'Processed';
+      if (isProcessing) {
+        if (!formData.resolution_details || !formData.nte_status || 
+            !formData.nte_date_issued || !formData.processed_by) {
+          setError('Please fill in all required fields for processing');
+          return;
+        }
+        // Add current date as process_date
+        formDataToSend.append('process_date', new Date().toISOString().split('T')[0]);
+      }
+  
+      const response = await axios.put(
         `http://localhost:5000/incident-reports/${incident.incident_id}`, 
         formDataToSend,
         {
@@ -204,14 +279,15 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
           }
         }
       );
-      
-      setSuccess('Incident report updated successfully');
+  
+      setSuccess(isProcessing ? 'Incident report processed successfully' : 'Incident report updated successfully');
       onIncidentUpdated();
       setTimeout(() => {
         onHide();
       }, 1500);
     } catch (err) {
-      setError(err.response?.data?.error || err.message);
+      console.error("Error submitting form:", err);
+      setError(err.response?.data?.error || 'Failed to update incident report');
     }
   };
 
@@ -231,6 +307,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
               name="reported_by"
               value={formData.reported_by}
               onChange={handleChange}
+              disabled={!formData.isEditing}
               required
             >
               <option value="">Select Reporter</option>
@@ -249,6 +326,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
                 type="text"
                 placeholder="Search by employee number or name"
                 value={searchTerm}
+                disabled={!formData.isEditing}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
                   if (formData.employee_no) {
@@ -289,6 +367,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
                 type="text"
                 placeholder="Search by employee number or name"
                 value={deptHeadSearchTerm}
+                disabled={!formData.isEditing}
                 onChange={(e) => {
                   setDeptHeadSearchTerm(e.target.value);
                   if (formData.department_head) {
@@ -330,6 +409,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
                   name="incident_category"
                   value={formData.incident_category}
                   onChange={handleChange}
+                  disabled={!formData.isEditing}
                   required
                 >
                   <option value="Employee Behavior">Employee Behavior</option>
@@ -344,6 +424,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
                   name="incident_type"
                   value={formData.incident_type}
                   onChange={handleChange}
+                  disabled={!formData.isEditing}
                   required
                 >
                   {getTypeOptions(formData.incident_category).map(option => (
@@ -365,6 +446,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
                   name="incident_date"
                   value={formData.incident_date}
                   onChange={handleChange}
+                  disabled={!formData.isEditing}
                   required
                 />
               </Form.Group>
@@ -377,6 +459,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
                   name="incident_time"
                   value={formData.incident_time}
                   onChange={handleChange}
+                  disabled={!formData.isEditing}
                   required
                 />
               </Form.Group>
@@ -389,6 +472,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
               name="department"
               value={formData.department}
               onChange={handleChange}
+              disabled={!formData.isEditing}
               required
             >
               <option value="Admin Department">Admin Department</option>
@@ -397,12 +481,13 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
           </Form.Group>
           
           <Form.Group className="mb-3">
-            <Form.Label>Location *</Form.Label>
+            <Form.Label>Location of Incident *</Form.Label>
             <Form.Control
               type="text"
               name="location"
               value={formData.location}
               onChange={handleChange}
+              disabled={!formData.isEditing}
               required
             />
           </Form.Group>
@@ -415,6 +500,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
               name="description"
               value={formData.description}
               onChange={handleChange}
+              disabled={!formData.isEditing}
               required
             />
           </Form.Group>
@@ -426,6 +512,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
               name="witnesses"
               value={formData.witnesses}
               onChange={handleChange}
+              disabled={!formData.isEditing}
               placeholder="Separate multiple witnesses with commas"
             />
           </Form.Group>
@@ -436,6 +523,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
               name="severity"
               value={formData.severity}
               onChange={handleChange}
+              disabled={!formData.isEditing}
               required
             >
               <option value="Low">Low</option>
@@ -451,8 +539,9 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
               name="status"
               value={formData.status}
               onChange={handleChange}
+          
             >
-              <option value="Open">Open</option>
+              <option value="Pending">Pending</option>
               <option value="Under Investigation">Under Investigation</option>
               <option value="Resolved">Resolved</option>
               <option value="Closed">Closed</option>
@@ -460,50 +549,50 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
           </Form.Group>
 
           <Form.Group className="mb-3">
-  <Form.Label>Current Attachments</Form.Label>
-  <div className="mb-2">
-    {[
-      incident?.attachment1_path && (
-        <a 
-          key="1"
-          href={incident.attachment1_path}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-sm btn-outline-primary me-2"
-        >
-          Attachment 1
-        </a>
-      ),
-      incident?.attachment2_path && (
-        <a
-          key="2"
-          href={incident.attachment2_path}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-sm btn-outline-primary me-2"
-        >
-          Attachment 2
-        </a>
-      ),
-      incident?.attachment3_path && (
-        <a
-          key="3"
-          href={incident.attachment3_path}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-sm btn-outline-primary"
-        >
-          Attachment 3
-        </a>
-      )
-    ].filter(Boolean)}
-    {!incident?.attachment1_path && 
-     !incident?.attachment2_path && 
-     !incident?.attachment3_path && 
-     <span>No current attachments</span>
-    }
-  </div>
-</Form.Group>
+            <Form.Label>Current Attachments</Form.Label>
+            <div className="mb-2">
+              {[
+                incident?.attachment1_path && (
+                  <a 
+                    key="1"
+                    href={incident.attachment1_path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-outline-primary me-2"
+                  >
+                    Attachment 1
+                  </a>
+                ),
+                incident?.attachment2_path && (
+                  <a
+                    key="2"
+                    href={incident.attachment2_path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-outline-primary me-2"
+                  >
+                    Attachment 2
+                  </a>
+                ),
+                incident?.attachment3_path && (
+                  <a
+                    key="3"
+                    href={incident.attachment3_path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-outline-primary"
+                  >
+                    Attachment 3
+                  </a>
+                )
+              ].filter(Boolean)}
+              {!incident?.attachment1_path && 
+              !incident?.attachment2_path && 
+              !incident?.attachment3_path && 
+              <span>No current attachments</span>
+              }
+            </div>
+          </Form.Group>
           
           <Form.Group className="mb-3">
             <Form.Label>Attachments (Max 3 files)</Form.Label>
@@ -511,6 +600,7 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
               type="file"
               multiple
               onChange={handleFileChange}
+              disabled={!formData.isEditing}
               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
               isInvalid={!!errors.attachments}
             />
@@ -520,24 +610,144 @@ const EditRecordModal = ({ show, onHide, incident, employees, onIncidentUpdated 
           </Form.Group>
           
           <Form.Group className="mb-3">
-            <Form.Label>Resolution Details</Form.Label>
+              <Form.Label>Resolution Details {isProcessing && '*'}</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="resolution_details"
+                value={formData.resolution_details}
+                onChange={handleChange}
+                required={isProcessing}
+                placeholder="Enter resolution details if any"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>NTE Status {isProcessing && '*'}</Form.Label>
+              <Form.Select
+                name="nte_status"
+                value={formData.nte_status}
+                onChange={handleChange}
+                required={isProcessing}
+              >
+                <option value="">No NTE</option>
+                <option value="For NTE">For NTE</option>
+                <option value="NTE Issued">NTE Issued</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+            <Form.Label>NTE Date Issued {isProcessing && '*'}</Form.Label>
             <Form.Control
-              as="textarea"
-              rows={3}
-              name="resolution_details"
-              value={formData.resolution_details}
+              type="date"
+              name="nte_date_issued"
+              value={formData.nte_date_issued}
               onChange={handleChange}
-              placeholder="Enter resolution details if any"
+              required={isProcessing}
             />
           </Form.Group>
+          <Form.Group className="mb-3" ref={processedBySearchRef}>
+            <Form.Label>Processed By</Form.Label>
+            <div className="search-container">
+              <Form.Control
+                type="text"
+                placeholder="Search by employee number or name"
+                value={processedBySearchTerm}
+                required={isProcessing}
+                onChange={(e) => {
+                  setProcessedBySearchTerm(e.target.value);
+                  if (formData.processed_by) {
+                    setFormData(prev => ({ ...prev, processed_by: '' }));
+                  }
+                }}
+                onClick={() => {
+                  if (!formData.processed_by) {
+                    setShowProcessedByDropdown(true);
+                  }
+                }}
+              />
+              {showProcessedByDropdown && !formData.processed_by && (
+                <div className="employee-dropdown">
+                  {filteredProcessedBy.length > 0 ? (
+                    filteredProcessedBy.map(emp => (
+                      <div
+                        key={emp.employeeNo}
+                        className="employee-item"
+                        onClick={() => handleProcessedBySelect(emp)}
+                      >
+                        {emp.employeeNo} - {emp.firstName} {emp.lastName}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="no-results">No employees found</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Form.Group>
 
-          <div className="d-flex justify-content-end">
+          <Form.Group className="mb-3">
+            <Form.Label>NTE Attachment</Form.Label>
+            <Form.Control
+              type="file"
+              name="nte_attachment"
+              onChange={handleNTEFileChange}
+              accept=".pdf,.doc,.docx"
+            />
+            {formData.nte_attachment_path && (
+              <div className="mt-2">
+                <a 
+                  href={formData.nte_attachment_path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-sm btn-outline-primary"
+                >
+                  View NTE
+                </a>
+              </div>
+            )}
+          </Form.Group>
+
+          
+          <div className="d-flex justify-content-end mt-4">
             <Button variant="secondary" onClick={onHide} className="me-2">
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
-              Update Incident Report
-            </Button>
+            <Button 
+                variant="warning"
+                size='sm'
+                className="me-2"
+                onClick={() => {
+                  if (formData.isEditing) {
+                    handleSubmit(new Event('submit')); // Create a synthetic event
+                  } else {
+                    setFormData(prev => ({ ...prev, isEditing: true }));
+                  }
+                }}
+              >
+                {formData.isEditing ? 'Save' : 'Edit'}
+              </Button>
+              <Button 
+                  variant="primary" 
+                  type="submit"
+                  className="sm me-2"
+                  onClick={(e) => { // Add event parameter here
+                    e.preventDefault(); // Prevent form submission
+                    if (!formData.resolution_details || !formData.nte_status || 
+                        !formData.nte_date_issued || !formData.processed_by) {
+                      setError('Please fill in all required fields for processing');
+                      return;
+                    }
+                    setFormData(prev => ({
+                      ...prev,
+                      status: 'Processed'
+                    }));
+                    handleSubmit(e); // Pass the event
+                  }}
+                  disabled={formData.status === 'Processed'}
+                >
+                  Process
+                </Button>
           </div>
         </Form>
       </Modal.Body>

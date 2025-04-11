@@ -1522,6 +1522,52 @@ async function deleteIncidentFromSheet(incidentId) {
   }
 }
 
+// Add this function to handle NTE attachment upload
+async function uploadNTEAttachment(file, employeeNo, lastName, dateIssued) {
+  try {
+    // Get or create employee folder
+    const employeeFolderId = await getOrCreateEmployeeFolder(employeeNo, lastName);
+    
+    // Format the filename: NTE_SURNAME_DATE.ext
+    const fileExt = path.extname(file.originalname);
+    const formattedDate = new Date(dateIssued).toISOString().split('T')[0];
+    const fileName = `NTE_${lastName}_${formattedDate}${fileExt}`;
+
+    const fileMetadata = {
+      name: fileName,
+      parents: [employeeFolderId]
+    };
+
+    const media = {
+      mimeType: file.mimetype,
+      body: fs.createReadStream(file.path)
+    };
+
+    const response = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id'
+    });
+
+    // Make file publicly accessible
+    await drive.permissions.create({
+      fileId: response.data.id,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone'
+      }
+    });
+
+    const fileUrl = `https://drive.google.com/uc?export=view&id=${response.data.id}`;
+    fs.unlinkSync(file.path); // Clean up temp file
+
+    return fileUrl;
+  } catch (error) {
+    console.error('Error uploading NTE attachment:', error);
+    throw error;
+  }
+}
+
 // Get all incident reports
 app.get("/incident-reports", async (req, res) => {
   try {
@@ -1639,54 +1685,55 @@ app.post("/incident-reports", upload.array('attachments', 3), async (req, res) =
 
 // Similarly update the PUT and DELETE endpoints to include sheet operations
 
-// Update the PUT /records/:id endpoint
-app.put("/incident-reports/:id", upload.array('attachments', 3), async (req, res) => {
+// Update the PUT endpoint for incident reports
+app.put("/incident-reports/:id", upload.fields([
+  { name: 'attachments', maxCount: 3 },
+  { name: 'nte_attachment', maxCount: 1 }
+]), async (req, res) => {
   try {
     const incidentId = req.params.id;
-    const {
-      reported_by,
-      employee_no,
-      department_head,
-      incident_category,
-      incident_type,
-      incident_date,
-      incident_time,
-      department,
-      location,
-      description,
-      witnesses,
-      severity,
-      status,
-      resolution_details
-    } = req.body;
-
-    // Get employee details
+    
+    // Get employee details first
     const [employee] = await pool.query(
-      'SELECT firstName, lastName FROM employees WHERE employeeNo = ?',
-      [employee_no]
+      'SELECT e.firstName, e.lastName FROM incident_reports ir ' +
+      'JOIN employees e ON ir.employee_no = e.employeeNo ' +
+      'WHERE ir.incident_id = ?',
+      [incidentId]
     );
 
     if (!employee.length) {
-      return res.status(400).json({ error: "Employee not found" });
+      return res.status(404).json({ error: "Employee not found" });
     }
 
     const employeeName = `${employee[0].firstName} ${employee[0].lastName}`;
     const attachmentResults = [];
+    let nteAttachmentUrl = null;
 
-    if (req.files && req.files.length > 0) {
-      for (let i = 0; i < req.files.length; i++) {
+    // Handle incident attachments
+    if (req.files?.attachments) {
+      for (let file of req.files.attachments) {
         const attachmentResult = await uploadIncidentAttachment(
-          req.files[i],
-          employee_no,
+          file,
+          req.body.employee_no,
           employee[0].lastName
         );
         attachmentResults.push(attachmentResult);
       }
     }
 
-    // Get current incident data for attachment handling
+    // Handle NTE attachment if present
+    if (req.files?.nte_attachment) {
+      nteAttachmentUrl = await uploadNTEAttachment(
+        req.files.nte_attachment[0],
+        req.body.employee_no,
+        employee[0].lastName,
+        req.body.nte_date_issued
+      );
+    }
+
+    // Get current incident data for existing attachments
     const [currentIncident] = await pool.query(
-      'SELECT attachment1_path, attachment2_path, attachment3_path FROM incident_reports WHERE incident_id = ?',
+      'SELECT * FROM incident_reports WHERE incident_id = ?',
       [incidentId]
     );
 
@@ -1711,44 +1758,50 @@ app.put("/incident-reports/:id", upload.array('attachments', 3), async (req, res
         severity = ?,
         status = ?,
         resolution_details = ?,
+        nte_status = ?,
+        nte_date_issued = ?,
+        processed_by = ?,
+        process_date = ?,
         attachment1_path = ?,
         attachment1_name = ?,
         attachment2_path = ?,
         attachment2_name = ?,
         attachment3_path = ?,
         attachment3_name = ?,
+        nte_attachment_path = ?,
         updated_at = NOW()
       WHERE incident_id = ?`,
       [
-        reported_by,
-        employee_no,
-        department_head,
-        incident_category,
-        incident_type,
-        incident_date,
-        incident_time,
-        department,
-        location,
-        description,
-        witnesses,
-        severity,
-        status,
-        resolution_details,
+        req.body.reported_by,
+        req.body.employee_no,
+        req.body.department_head,
+        req.body.incident_category,
+        req.body.incident_type,
+        req.body.incident_date,
+        req.body.incident_time,
+        req.body.department,
+        req.body.location,
+        req.body.description,
+        req.body.witnesses,
+        req.body.severity,
+        req.body.status,
+        req.body.resolution_details,
+        req.body.nte_status,
+        req.body.nte_date_issued,
+        req.body.processed_by,
+        req.body.process_date,
         attachmentResults[0]?.path || currentIncident[0].attachment1_path,
-        attachmentResults[0]?.name || null,
+        attachmentResults[0]?.name || currentIncident[0].attachment1_name,
         attachmentResults[1]?.path || currentIncident[0].attachment2_path,
-        attachmentResults[1]?.name || null,
+        attachmentResults[1]?.name || currentIncident[0].attachment2_name,
         attachmentResults[2]?.path || currentIncident[0].attachment3_path,
-        attachmentResults[2]?.name || null,
+        attachmentResults[2]?.name || currentIncident[0].attachment3_name,
+        nteAttachmentUrl || currentIncident[0].nte_attachment_path,
         incidentId
       ]
     );
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Incident report not found" });
-    }
-
-    // Get the updated incident data
+    // Get updated incident data
     const [updatedIncident] = await pool.query(
       'SELECT * FROM incident_reports WHERE incident_id = ?',
       [incidentId]

@@ -564,7 +564,7 @@ const Record = () => {
                       className="btn btn-primary btn-sm me-2" 
                       onClick={() => handleEditClick(record)}
                     >
-                      Edit
+                      Process
                     </button>
                     {userRole === "Super Admin" && (
                       <button 
