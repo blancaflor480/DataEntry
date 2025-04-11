@@ -241,8 +241,6 @@ const Record = () => {
     // Add these functions before the return statement
      
     }
-
-
     return result;
   };
 

@@ -5,6 +5,7 @@ const https = require('https');
 const admin = require("firebase-admin");
 const multer = require("multer");
 const { google } = require("googleapis");
+const axios = require('axios'); // Add this line
 const path = require("path");
 require("dotenv").config();
 const mysql = require('mysql2/promise');
@@ -2101,11 +2102,54 @@ app.put('/api/v1/leaves/delete-requests/:requestId/reject', async (req, res) => 
   }
 });
 
+// Holiday API integration
+// Update the holidays endpoint
+app.get('/api/v1/holidays', async (req, res) => {
+  try {
+    const year = new Date().getFullYear();
+    const response = await axios.get(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`);
+
+    if (!response.data) {
+      throw new Error('Invalid response from holiday API');
+    }
+
+    const holidays = response.data.map(holiday => ({
+      title: holiday.name,
+      start: holiday.date,
+      display: 'background',
+      color: '#ffefef',
+      extendedProps: {
+        type: 'holiday',
+        localName: holiday.localName,
+        countryCode: holiday.countryCode,
+        fixed: holiday.fixed,
+        global: holiday.global
+      }
+    }));
+
+    res.json(holidays);
+  } catch (error) {
+    console.error('Error fetching holidays:', error.message);
+    // If API fails, return some default holidays
+    const defaultHolidays = [
+      {
+        title: "New Year's Day",
+        start: `${year}-01-01`,
+        display: 'background',
+        color: '#ffefef',
+        extendedProps: { type: 'holiday' }
+      },
+      // Add more default holidays if needed
+    ];
+    
+    res.json(defaultHolidays);
+  }
+});
+
 // Default route
 app.get("/", (req, res) => {
     res.send("Server is Running!");
 });
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {

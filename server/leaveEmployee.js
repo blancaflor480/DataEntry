@@ -24,7 +24,7 @@ const sheets = google.sheets({
 });
 
 // Configuration
-const DRIVE_LEAVES_FOLDER_ID = '1fIqyPpe2LFjaF1JYywgoe9-028fiMrgq';
+const DRIVE_LEAVES_FOLDER_ID = '1RLnXZNZhnJzcBdauSdmruqqJweFD-lXy';
 const SPREADSHEET_ID = '1niZXidIiHwRI4itEJgswcXCvaJtiBfHDSa1CbOqZayw';
 const LEAVES_SHEET_NAME = 'Employee_Leaves';
 
@@ -34,10 +34,9 @@ const calculateDays = (startDate, endDate) => {
   const end = new Date(endDate);
   return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 };
-
-const getOrCreateLeaveFolder = async (employeeNo, lastName) => {
+const getOrCreateEmployeeFolder = async (employeeNo, lastName) => {
   try {
-    const folderName = `Employee_Leave_Record_${lastName}_${employeeNo}`;
+    const folderName = `${lastName}_${employeeNo}`;
     
     const { data: { files } } = await drive.files.list({
       q: `'${DRIVE_LEAVES_FOLDER_ID}' in parents and name='${folderName}' and mimeType='application/vnd.google-apps.folder'`,
@@ -46,24 +45,58 @@ const getOrCreateLeaveFolder = async (employeeNo, lastName) => {
 
     if (files.length > 0) return files[0].id;
 
+    const folderMetadata = {
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [DRIVE_LEAVES_FOLDER_ID]
+    };
+
     const { data: folder } = await drive.files.create({
-      resource: {
-        name: folderName,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [DRIVE_LEAVES_FOLDER_ID]
-      },
-      fields: 'id'
+      resource: folderMetadata,
+      fields: 'id',
     });
 
     return folder.id;
   } catch (error) {
-    console.error('Error in getOrCreateLeaveFolder:', error);
+    console.error('Error in creating/getting employee folder:', error);
     throw error;
   }
 };
 
-const uploadLeaveFile = async (file, fileName, folderId) => {
+const uploadLeaveFile = async (file, employeeNo, lastName, fileType, dateIssued) => {
   try {
+
+    const folderId = await getOrCreateEmployeeFolder(employeeNo, lastName);
+    const fileExt = path.extname(file.originalname);
+    let formattedDate;
+    try {
+      // Handle different date formats
+      if (typeof dateIssued === 'string') {
+        // If date string contains 'T' (ISO format)
+        if (dateIssued.includes('T')) {
+          formattedDate = dateIssued.split('T')[0];
+        } else {
+          // Try parsing the date string
+          const date = new Date(dateIssued);
+          if (isNaN(date.getTime())) {
+            // If invalid date, use current date
+            formattedDate = new Date().toISOString().split('T')[0];
+          } else {
+            formattedDate = date.toISOString().split('T')[0];
+          }
+        }
+      } else {
+        // If not a string, use current date
+        formattedDate = new Date().toISOString().split('T')[0];
+      }
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      // Fallback to current date if there's an error
+      formattedDate = new Date().toISOString().split('T')[0];
+    }
+
+    const fileName = `Leave_${fileType}_${lastName}_${formattedDate}${fileExt}`;
+
     const fileMetadata = {
       name: fileName,
       parents: [folderId]
@@ -88,7 +121,10 @@ const uploadLeaveFile = async (file, fileName, folderId) => {
     const fileUrl = `https://drive.google.com/uc?export=view&id=${uploadedFile.id}`;
     fs.unlinkSync(file.path);
     
-    return fileUrl;
+    return {
+      path: fileUrl,
+      name: fileName
+    };
   } catch (error) {
     console.error('Error in uploadLeaveFile:', error);
     throw error;
@@ -203,11 +239,15 @@ const createLeave = async (leaveData, file) => {
     // 2. Handle Google Drive upload
     let leaveFormUrl = '';
     if (file) {
-      const folderId = await getOrCreateLeaveFolder(leaveData.employee_no, employee[0].lastName);
-      const fileExt = path.extname(file.originalname);
-      const fileName = `Leave_${employee[0].lastName}_${format(new Date(), 'yyyy-MM-dd')}${fileExt}`;
-      leaveFormUrl = await uploadLeaveFile(file, fileName, folderId);
-    }
+      const fileUploadResult = await uploadLeaveFile(
+        file, 
+        leaveData.employee_no, 
+        employee[0].lastName,
+        'LEAVE',
+        new Date().toISOString()
+      );
+      leaveFormUrl = fileUploadResult.path; // Use only the path from the result
+   }
 
     // 3. Insert to MySQL
     const [result] = await connection.query(
@@ -220,8 +260,8 @@ const createLeave = async (leaveData, file) => {
         leaveData.start_date, 
         leaveData.end_date, 
         leaveData.reason, 
-        leaveFormUrl || null, 
-        leaveData.status || 'Pending'
+        leaveFormUrl, 
+        leaveData.status || 'Pending for Approval'
       ]
     );
 
@@ -266,7 +306,7 @@ const updateLeave = async (leaveId, leaveData, file) => {
 
     let leaveFormUrl = currentLeave[0].leave_form;
     if (file) {
-      const folderId = await getOrCreateLeaveFolder(currentLeave[0].employee_no, currentLeave[0].lastName);
+      const folderId = await getOrCreateEmployeeFolder(currentLeave[0].employee_no, currentLeave[0].lastName);
       const fileExt = path.extname(file.originalname);
       const fileName = `Leave_${currentLeave[0].lastName}_${format(new Date(), 'yyyy-MM-dd')}${fileExt}`;
       leaveFormUrl = await uploadLeaveFile(file, fileName, folderId);

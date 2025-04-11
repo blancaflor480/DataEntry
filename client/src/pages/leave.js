@@ -15,6 +15,7 @@ import { db } from "../firebase";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { Modal, Button } from 'react-bootstrap';
+import LeaveCalendarModal from '../modal/leavecalendarmodal';
 import axios from 'axios';
 
 const Leave = () => {
@@ -45,6 +46,7 @@ const [leaveToDelete, setLeaveToDelete] = useState(null);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertVariant, setAlertVariant] = useState("success");
   const [showProcessModal, setShowProcessModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const navigate = useNavigate();
   
   // New state for sorting
@@ -432,7 +434,7 @@ const handleTableApprovalClick = (leave) => {
 
             {/* Search Bar and Button */}
             <div className="search-container mt-3">
-              <div className="col-sm-7">
+              <div className="col-sm-6">
                 <input
                   type="text"
                   className="form-control search-input"
@@ -442,7 +444,12 @@ const handleTableApprovalClick = (leave) => {
                 />
               </div>
               <button className="btn btn-primary search-button btn-sm">Search</button>
-              
+              <button 
+                className="btn btn-primary search-button btn-sm"
+                onClick={() => setShowCalendarModal(true)}
+              >
+                Calendar
+              </button>
               <button
                 className="btn btn-danger search-button btn-sm"
                 onClick={() => setShowDeleteLeaveApprovalModal(true)} // Changed from setShowApprovalDeleteModal
@@ -764,6 +771,12 @@ const handleTableApprovalClick = (leave) => {
           setShowAddModal(false);
         }}  
       />
+      <LeaveCalendarModal
+  show={showCalendarModal}
+  onHide={() => setShowCalendarModal(false)}
+  leaves={leaves}
+  getEmployeeName={getEmployeeName}
+/>
 
 <ProcessLeaveModal
   show={showProcessModal}
